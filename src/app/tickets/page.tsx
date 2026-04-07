@@ -3,7 +3,6 @@ import Link from 'next/link'
 import { 
   LayoutDashboard, 
   Ticket, 
-  Users, 
   BarChart3, 
   Settings,
   Headphones,
@@ -13,37 +12,62 @@ import {
   Filter,
   Grid,
   List,
-  Calendar,
   User,
   AlertCircle,
   Clock,
-  CheckCircle,
-  XCircle
+  CheckCircle
 } from 'lucide-react'
 import { useState } from 'react'
+import TicketModal from '@/components/TicketModal'
+
+interface Ticket {
+  id: string
+  title: string
+  description: string
+  priority: string
+  category: string
+  state: 'open' | 'inProgress' | 'resolved' | 'closed'
+  assignee: string
+  created: string
+}
 
 export default function Tickets() {
   const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban')
-  
-  const tickets = {
-    open: [
-      { id: 'TKT-001', title: 'Error crítico en servidor principal', priority: 'high', assignee: 'Carlos G.', created: '5 min' },
-      { id: 'TKT-004', title: 'Actualización Windows Server fallida', priority: 'high', assignee: 'Ana M.', created: '30 min' },
-      { id: 'TKT-006', title: 'Base de datos lenta', priority: 'medium', assignee: 'Luis R.', created: '1 hora' },
-    ],
-    inProgress: [
-      { id: 'TKT-002', title: 'Solicitud de acceso VPN', priority: 'medium', assignee: 'María L.', created: '1 hora' },
-      { id: 'TKT-005', title: 'Backup no completado', priority: 'medium', assignee: 'Carlos G.', created: '3 horas' },
-      { id: 'TKT-007', title: 'Configuración nuevo empleado', priority: 'low', assignee: 'Ana M.', created: '2 horas' },
-    ],
-    resolved: [
-      { id: 'TKT-003', title: 'Problema con impresoras red', priority: 'low', assignee: 'Luis R.', created: '2 horas' },
-      { id: 'TKT-008', title: 'Restablecer contraseña usuario', priority: 'low', assignee: 'María L.', created: '4 horas' },
-    ],
-    closed: [
-      { id: 'TKT-009', title: 'Instalación software cliente', priority: 'low', assignee: 'Carlos G.', created: '1 día' },
-      { id: 'TKT-010', title: 'Reemplazo teclado dañado', priority: 'low', assignee: 'Ana M.', created: '2 días' },
-    ]
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [tickets, setTickets] = useState<Ticket[]>([
+    { id: 'TKT-001', title: 'Error crítico en servidor principal', description: 'El servidor principal presenta errores críticos', priority: 'high', category: 'servidor', state: 'open', assignee: 'Carlos G.', created: '5 min' },
+    { id: 'TKT-002', title: 'Solicitud de acceso VPN', description: 'Necesito acceso VPN para trabajar desde casa', priority: 'medium', category: 'acceso', state: 'inProgress', assignee: 'María L.', created: '1 hora' },
+    { id: 'TKT-003', title: 'Problema con impresoras red', description: 'Las impresoras de red no funcionan', priority: 'low', category: 'hardware', state: 'resolved', assignee: 'Luis R.', created: '2 horas' },
+    { id: 'TKT-004', title: 'Actualización Windows Server', description: 'La actualización automática falló', priority: 'high', category: 'servidor', state: 'open', assignee: 'Ana M.', created: '30 min' },
+    { id: 'TKT-005', title: 'Backup no completado', description: 'El backup nocturno no se completó', priority: 'medium', category: 'bd', state: 'inProgress', assignee: 'Carlos G.', created: '3 horas' },
+  ])
+
+  const generateId = () => {
+    const num = (tickets.length + 1).toString().padStart(3, '0')
+    return `TKT-${num}`
+  }
+
+  const handleCreateTicket = (ticket: {
+    title: string
+    description: string
+    priority: string
+    category: string
+  }) => {
+    const newTicket: Ticket = {
+      id: generateId(),
+      ...ticket,
+      state: 'open',
+      assignee: 'Sin asignar',
+      created: 'Ahora'
+    }
+    setTickets([newTicket, ...tickets])
+  }
+
+  const ticketsByState = {
+    open: tickets.filter(t => t.state === 'open'),
+    inProgress: tickets.filter(t => t.state === 'inProgress'),
+    resolved: tickets.filter(t => t.state === 'resolved'),
+    closed: tickets.filter(t => t.state === 'closed'),
   }
 
   const getPriorityBadge = (priority: string) => {
@@ -55,16 +79,30 @@ export default function Tickets() {
     }
   }
 
-  const getPriorityIcon = (priority: string) => {
+  const getPriorityLabel = (priority: string) => {
     switch (priority) {
-      case 'high': return <AlertCircle className="w-4 h-4 text-red-400" />
-      case 'medium': return <Clock className="w-4 h-4 text-yellow-400" />
-      case 'low': return <CheckCircle className="w-4 h-4 text-green-400" />
-      default: return null
+      case 'high': return 'Alta'
+      case 'medium': return 'Media'
+      case 'low': return 'Baja'
+      default: return priority
     }
   }
 
-  const renderTicketCard = (ticket: typeof tickets.open[0]) => (
+  const getCategoryLabel = (category: string) => {
+    const labels: Record<string, string> = {
+      soporte: 'Soporte',
+      hardware: 'Hardware',
+      software: 'Software',
+      red: 'Redes',
+      seguridad: 'Seguridad',
+      bd: 'Base de Datos',
+      servidor: 'Servidor',
+      acceso: 'Accesos'
+    }
+    return labels[category] || category
+  }
+
+  const renderTicketCard = (ticket: Ticket) => (
     <div 
       key={ticket.id}
       className={`ticket-card rounded-xl p-4 ${
@@ -72,13 +110,14 @@ export default function Tickets() {
         ticket.priority === 'medium' ? 'priority-medium' : 'priority-low'
       }`}
     >
-      <div className="flex items-start justify-between mb-3">
+      <div className="flex items-start justify-between mb-2">
         <span className="text-xs font-mono text-slate-500">{ticket.id}</span>
         <span className={`px-2 py-1 rounded-lg text-xs font-medium ${getPriorityBadge(ticket.priority)}`}>
-          {ticket.priority === 'high' ? 'Alta' : ticket.priority === 'medium' ? 'Media' : 'Baja'}
+          {getPriorityLabel(ticket.priority)}
         </span>
       </div>
-      <h4 className="font-medium text-slate-200 mb-3 line-clamp-2">{ticket.title}</h4>
+      <h4 className="font-medium text-slate-200 mb-2 line-clamp-2">{ticket.title}</h4>
+      <p className="text-xs text-slate-500 mb-3">{getCategoryLabel(ticket.category)}</p>
       <div className="flex items-center justify-between text-sm">
         <div className="flex items-center gap-2 text-slate-400">
           <User className="w-4 h-4" />
@@ -120,13 +159,6 @@ export default function Tickets() {
           >
             <Ticket className="w-5 h-5" />
             Tickets
-          </Link>
-          <Link 
-            href="#"
-            className="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-300 hover:bg-slate-800 transition"
-          >
-            <Users className="w-5 h-5" />
-            Clientes
           </Link>
           <Link 
             href="#"
@@ -186,7 +218,7 @@ export default function Tickets() {
           <div className="flex items-center justify-between mb-8">
             <div>
               <h1 className="text-3xl font-bold mb-2">Tickets</h1>
-              <p className="text-slate-400">247 tickets activos</p>
+              <p className="text-slate-400">{tickets.length} tickets totales</p>
             </div>
             <div className="flex items-center gap-3">
               <button className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-xl flex items-center gap-2 transition">
@@ -207,7 +239,10 @@ export default function Tickets() {
                   <List className="w-5 h-5" />
                 </button>
               </div>
-              <button className="px-6 py-3 bg-blue-500 hover:bg-blue-600 rounded-xl font-medium flex items-center gap-2 transition">
+              <button 
+                onClick={() => setIsModalOpen(true)}
+                className="px-6 py-3 bg-blue-500 hover:bg-blue-600 rounded-xl font-medium flex items-center gap-2 transition"
+              >
                 <Plus className="w-5 h-5" />
                 Nuevo Ticket
               </button>
@@ -225,11 +260,11 @@ export default function Tickets() {
                     <h3 className="font-bold">Abiertos</h3>
                   </div>
                   <span className="px-2 py-1 bg-red-500/20 text-red-400 rounded-lg text-sm font-medium">
-                    {tickets.open.length}
+                    {ticketsByState.open.length}
                   </span>
                 </div>
                 <div className="space-y-3">
-                  {tickets.open.map(renderTicketCard)}
+                  {ticketsByState.open.map(renderTicketCard)}
                 </div>
               </div>
 
@@ -241,11 +276,11 @@ export default function Tickets() {
                     <h3 className="font-bold">En Progreso</h3>
                   </div>
                   <span className="px-2 py-1 bg-yellow-500/20 text-yellow-400 rounded-lg text-sm font-medium">
-                    {tickets.inProgress.length}
+                    {ticketsByState.inProgress.length}
                   </span>
                 </div>
                 <div className="space-y-3">
-                  {tickets.inProgress.map(renderTicketCard)}
+                  {ticketsByState.inProgress.map(renderTicketCard)}
                 </div>
               </div>
 
@@ -257,11 +292,11 @@ export default function Tickets() {
                     <h3 className="font-bold">Resueltos</h3>
                   </div>
                   <span className="px-2 py-1 bg-green-500/20 text-green-400 rounded-lg text-sm font-medium">
-                    {tickets.resolved.length}
+                    {ticketsByState.resolved.length}
                   </span>
                 </div>
                 <div className="space-y-3">
-                  {tickets.resolved.map(renderTicketCard)}
+                  {ticketsByState.resolved.map(renderTicketCard)}
                 </div>
               </div>
 
@@ -273,11 +308,11 @@ export default function Tickets() {
                     <h3 className="font-bold">Cerrados</h3>
                   </div>
                   <span className="px-2 py-1 bg-slate-500/20 text-slate-400 rounded-lg text-sm font-medium">
-                    {tickets.closed.length}
+                    {ticketsByState.closed.length}
                   </span>
                 </div>
                 <div className="space-y-3">
-                  {tickets.closed.map(renderTicketCard)}
+                  {ticketsByState.closed.map(renderTicketCard)}
                 </div>
               </div>
             </div>
@@ -291,6 +326,7 @@ export default function Tickets() {
                   <tr>
                     <th className="text-left px-6 py-4 font-medium text-slate-400">ID</th>
                     <th className="text-left px-6 py-4 font-medium text-slate-400">Título</th>
+                    <th className="text-left px-6 py-4 font-medium text-slate-400">Categoría</th>
                     <th className="text-left px-6 py-4 font-medium text-slate-400">Prioridad</th>
                     <th className="text-left px-6 py-4 font-medium text-slate-400">Estado</th>
                     <th className="text-left px-6 py-4 font-medium text-slate-400">Asignado</th>
@@ -298,18 +334,20 @@ export default function Tickets() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-700/50">
-                  {[...tickets.open, ...tickets.inProgress, ...tickets.resolved].map((ticket) => (
-                    <tr key={ticket.id} className="hover:bg-slate-800/30 transition">
+                  {tickets.map((ticket) => (
+                    <tr key={ticket.id} className="hover:bg-slate-800/30 transition cursor-pointer">
                       <td className="px-6 py-4 font-mono text-slate-400">{ticket.id}</td>
                       <td className="px-6 py-4 font-medium">{ticket.title}</td>
+                      <td className="px-6 py-4 text-slate-400">{getCategoryLabel(ticket.category)}</td>
                       <td className="px-6 py-4">
                         <span className={`px-3 py-1 rounded-lg text-sm font-medium ${getPriorityBadge(ticket.priority)}`}>
-                          {ticket.priority === 'high' ? 'Alta' : ticket.priority === 'medium' ? 'Media' : 'Baja'}
+                          {getPriorityLabel(ticket.priority)}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-slate-400">
-                        {tickets.open.includes(ticket) ? 'Abierto' : 
-                         tickets.inProgress.includes(ticket) ? 'En Progreso' : 'Resuelto'}
+                        {ticket.state === 'open' ? 'Abierto' : 
+                         ticket.state === 'inProgress' ? 'En Progreso' : 
+                         ticket.state === 'resolved' ? 'Resuelto' : 'Cerrado'}
                       </td>
                       <td className="px-6 py-4 text-slate-400">{ticket.assignee}</td>
                       <td className="px-6 py-4 text-slate-500">{ticket.created}</td>
@@ -321,6 +359,13 @@ export default function Tickets() {
           )}
         </div>
       </main>
+
+      {/* Modal */}
+      <TicketModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)}
+        onSubmit={handleCreateTicket}
+      />
     </div>
   )
 }

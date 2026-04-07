@@ -1,8 +1,8 @@
+'use client'
 import Link from 'next/link'
 import { 
   LayoutDashboard, 
   Ticket, 
-  Users, 
   BarChart3, 
   Settings,
   Headphones,
@@ -16,15 +16,51 @@ import {
   ArrowUpRight,
   ArrowDownRight
 } from 'lucide-react'
+import { useState } from 'react'
+import TicketModal from '@/components/TicketModal'
+
+interface Ticket {
+  id: string
+  title: string
+  description: string
+  priority: string
+  category: string
+  state: 'open' | 'inProgress' | 'resolved' | 'closed'
+  assignee: string
+  created: string
+}
 
 export default function Dashboard() {
-  const tickets = [
-    { id: 'TKT-001', title: 'Error en servidor principal', status: 'high', state: 'Abierto', time: '5 min' },
-    { id: 'TKT-002', title: 'Solicitud de acceso VPN', status: 'medium', state: 'En Progreso', time: '1 hora' },
-    { id: 'TKT-003', title: 'Problema con impresoras red', status: 'low', state: 'Cerrado', time: '2 horas' },
-    { id: 'TKT-004', title: 'Actualización Windows Server', status: 'high', state: 'Abierto', time: '30 min' },
-    { id: 'TKT-005', title: 'Backup no completado', status: 'medium', state: 'En Progreso', time: '3 horas' },
-  ]
+  const [tickets, setTickets] = useState<Ticket[]>([
+    { id: 'TKT-001', title: 'Error crítico en servidor principal', description: '', priority: 'high', category: 'servidor', state: 'open', assignee: 'Carlos G.', created: '5 min' },
+    { id: 'TKT-002', title: 'Solicitud de acceso VPN', description: '', priority: 'medium', category: 'acceso', state: 'inProgress', assignee: 'María L.', created: '1 hora' },
+    { id: 'TKT-003', title: 'Problema con impresoras red', description: '', priority: 'low', category: 'hardware', state: 'resolved', assignee: 'Luis R.', created: '2 horas' },
+    { id: 'TKT-004', title: 'Actualización Windows Server', description: '', priority: 'high', category: 'servidor', state: 'open', assignee: 'Ana M.', created: '30 min' },
+    { id: 'TKT-005', title: 'Backup no completado', description: '', priority: 'medium', category: 'bd', state: 'inProgress', assignee: 'Carlos G.', created: '3 horas' },
+  ])
+
+  const [isModalOpen, setIsModalOpen] = useState(false)
+
+  const handleCreateTicket = (ticket: {
+    title: string
+    description: string
+    priority: string
+    category: string
+  }) => {
+    const newTicket: Ticket = {
+      id: `TKT-${(tickets.length + 1).toString().padStart(3, '0')}`,
+      ...ticket,
+      state: 'open',
+      assignee: 'Sin asignar',
+      created: 'Ahora'
+    }
+    setTickets([newTicket, ...tickets])
+  }
+
+  const openTickets = tickets.filter(t => t.state === 'open').length
+  const inProgressTickets = tickets.filter(t => t.state === 'inProgress').length
+  const resolvedTickets = tickets.filter(t => t.state === 'resolved' || t.state === 'closed').length
+  const criticalTickets = tickets.filter(t => t.priority === 'high' && t.state === 'open').length
 
   const getPriorityClass = (status: string) => {
     switch (status) {
@@ -37,10 +73,21 @@ export default function Dashboard() {
 
   const getStatusBadge = (state: string) => {
     switch (state) {
-      case 'Abierto': return 'bg-red-500/20 text-red-400 border border-red-500/30'
-      case 'En Progreso': return 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
-      case 'Cerrado': return 'bg-green-500/20 text-green-400 border border-green-500/30'
+      case 'open': return 'bg-red-500/20 text-red-400 border border-red-500/30'
+      case 'inProgress': return 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
+      case 'resolved': return 'bg-green-500/20 text-green-400 border border-green-500/30'
+      case 'closed': return 'bg-slate-500/20 text-slate-400 border border-slate-500/30'
       default: return 'bg-slate-500/20 text-slate-400 border border-slate-500/30'
+    }
+  }
+
+  const getStateLabel = (state: string) => {
+    switch (state) {
+      case 'open': return 'Abierto'
+      case 'inProgress': return 'En Progreso'
+      case 'resolved': return 'Resuelto'
+      case 'closed': return 'Cerrado'
+      default: return state
     }
   }
 
@@ -72,13 +119,6 @@ export default function Dashboard() {
           >
             <Ticket className="w-5 h-5" />
             Tickets
-          </Link>
-          <Link 
-            href="#"
-            className="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-300 hover:bg-slate-800 transition"
-          >
-            <Users className="w-5 h-5" />
-            Clientes
           </Link>
           <Link 
             href="#"
@@ -139,13 +179,13 @@ export default function Dashboard() {
               <h1 className="text-3xl font-bold mb-2">Dashboard</h1>
               <p className="text-slate-400">Resumen general del sistema de soporte</p>
             </div>
-            <Link 
-              href="/tickets"
+            <button 
+              onClick={() => setIsModalOpen(true)}
               className="px-6 py-3 bg-blue-500 hover:bg-blue-600 rounded-xl font-medium flex items-center gap-2 transition"
             >
               <Plus className="w-5 h-5" />
               Nuevo Ticket
-            </Link>
+            </button>
           </div>
 
           {/* Stats Grid */}
@@ -160,10 +200,10 @@ export default function Dashboard() {
                   +12%
                 </div>
               </div>
-              <h3 className="text-3xl font-bold mb-1">247</h3>
+              <h3 className="text-3xl font-bold mb-1">{openTickets}</h3>
               <p className="text-slate-400">Tickets Activos</p>
               <div className="mt-4 h-2 bg-slate-700 rounded-full overflow-hidden">
-                <div className="h-full bg-blue-500 rounded-full" style={{ width: '75%' }}></div>
+                <div className="h-full bg-blue-500 rounded-full" style={{ width: `${(openTickets / tickets.length) * 100}%` }}></div>
               </div>
             </div>
 
@@ -177,10 +217,10 @@ export default function Dashboard() {
                   -8%
                 </div>
               </div>
-              <h3 className="text-3xl font-bold mb-1">18</h3>
+              <h3 className="text-3xl font-bold mb-1">{inProgressTickets}</h3>
               <p className="text-slate-400">En Progreso</p>
               <div className="mt-4 h-2 bg-slate-700 rounded-full overflow-hidden">
-                <div className="h-full bg-purple-500 rounded-full" style={{ width: '45%' }}></div>
+                <div className="h-full bg-purple-500 rounded-full" style={{ width: `${(inProgressTickets / tickets.length) * 100}%` }}></div>
               </div>
             </div>
 
@@ -194,10 +234,10 @@ export default function Dashboard() {
                   +15%
                 </div>
               </div>
-              <h3 className="text-3xl font-bold mb-1">1,847</h3>
+              <h3 className="text-3xl font-bold mb-1">{resolvedTickets}</h3>
               <p className="text-slate-400">Resueltos</p>
               <div className="mt-4 h-2 bg-slate-700 rounded-full overflow-hidden">
-                <div className="h-full bg-green-500 rounded-full" style={{ width: '92%' }}></div>
+                <div className="h-full bg-green-500 rounded-full" style={{ width: `${(resolvedTickets / tickets.length) * 100}%` }}></div>
               </div>
             </div>
 
@@ -211,10 +251,10 @@ export default function Dashboard() {
                   -3%
                 </div>
               </div>
-              <h3 className="text-3xl font-bold mb-1">12</h3>
+              <h3 className="text-3xl font-bold mb-1">{criticalTickets}</h3>
               <p className="text-slate-400">Críticos</p>
               <div className="mt-4 h-2 bg-slate-700 rounded-full overflow-hidden">
-                <div className="h-full bg-red-500 rounded-full" style={{ width: '35%' }}></div>
+                <div className="h-full bg-red-500 rounded-full" style={{ width: `${(criticalTickets / openTickets) * 100 || 0}%` }}></div>
               </div>
             </div>
           </div>
@@ -228,10 +268,10 @@ export default function Dashboard() {
               </Link>
             </div>
             <div className="space-y-3">
-              {tickets.map((ticket) => (
+              {tickets.slice(0, 5).map((ticket) => (
                 <div 
                   key={ticket.id}
-                  className={`ticket-card rounded-xl p-4 ${getPriorityClass(ticket.status)}`}
+                  className={`ticket-card rounded-xl p-4 ${getPriorityClass(ticket.priority)}`}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
@@ -242,9 +282,9 @@ export default function Dashboard() {
                     </div>
                     <div className="flex items-center gap-3">
                       <span className={`px-3 py-1 rounded-lg text-sm font-medium ${getStatusBadge(ticket.state)}`}>
-                        {ticket.state}
+                        {getStateLabel(ticket.state)}
                       </span>
-                      <span className="text-slate-500 text-sm">{ticket.time}</span>
+                      <span className="text-slate-500 text-sm">{ticket.created}</span>
                     </div>
                   </div>
                 </div>
@@ -276,6 +316,12 @@ export default function Dashboard() {
           </div>
         </div>
       </main>
+
+      <TicketModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)}
+        onSubmit={handleCreateTicket}
+      />
     </div>
   )
 }
