@@ -20,6 +20,12 @@ interface Category {
   name: string
 }
 
+interface Technician {
+  id: number
+  name: string
+  email: string
+}
+
 export default function TicketModal({ isOpen, onClose, onSubmit }: TicketModalProps) {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
@@ -27,12 +33,14 @@ export default function TicketModal({ isOpen, onClose, onSubmit }: TicketModalPr
   const [categoryId, setCategoryId] = useState(1)
   const [createdBy, setCreatedBy] = useState('')
   const [categories, setCategories] = useState<Category[]>([])
+  const [technicians, setTechnicians] = useState<Technician[]>([])
 
   useEffect(() => {
     if (isOpen) {
       const savedName = localStorage.getItem('userName') || ''
       setCreatedBy(savedName)
       fetchCategories()
+      fetchTechnicians()
     }
   }, [isOpen])
 
@@ -40,9 +48,23 @@ export default function TicketModal({ isOpen, onClose, onSubmit }: TicketModalPr
     try {
       const res = await fetch('/api/categories')
       const data = await res.json()
-      setCategories(data)
+      if (Array.isArray(data)) {
+        setCategories(data)
+      }
     } catch (error) {
       console.error('Error fetching categories:', error)
+    }
+  }
+
+  const fetchTechnicians = async () => {
+    try {
+      const res = await fetch('/api/technicians')
+      const data = await res.json()
+      if (Array.isArray(data)) {
+        setTechnicians(data)
+      }
+    } catch (error) {
+      console.error('Error fetching technicians:', error)
     }
   }
 
@@ -132,6 +154,19 @@ export default function TicketModal({ isOpen, onClose, onSubmit }: TicketModalPr
                 ))}
               </select>
             </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">Asignar Técnico (por defecto: Helpdesk)</label>
+            <select
+              className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 focus:outline-none focus:border-blue-500"
+            >
+              {technicians.map((tech) => (
+                <option key={tech.id} value={tech.id}>
+                  {tech.name}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div>

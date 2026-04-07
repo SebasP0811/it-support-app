@@ -39,11 +39,16 @@ export async function POST(request: Request) {
     const count = parseInt(countResult.rows[0].count) + 1
     const ticketNumber = `TKT-${count.toString().padStart(4, '0')}`
 
+    const helpdeskResult = await pool.query(`
+      SELECT id FROM technicians WHERE email = 'helpdesk@idata.global' LIMIT 1
+    `)
+    const defaultTechnicianId = helpdeskResult.rows[0]?.id || null
+
     const result = await pool.query(`
-      INSERT INTO tickets (ticket_number, title, description, priority, category_id, created_by, state)
-      VALUES ($1, $2, $3, $4, $5, $6, 'open')
+      INSERT INTO tickets (ticket_number, title, description, priority, category_id, created_by, state, technician_id)
+      VALUES ($1, $2, $3, $4, $5, $6, 'open', $7)
       RETURNING *
-    `, [ticketNumber, title, description || '', priority || 'medium', category_id || 1, created_by || 'Usuario'])
+    `, [ticketNumber, title, description || '', priority || 'medium', category_id || 1, created_by || 'Usuario', defaultTechnicianId])
 
     return NextResponse.json(result.rows[0], { status: 201 })
   } catch (error) {
