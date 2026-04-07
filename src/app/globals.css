@@ -1,0 +1,56 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #0f172a;
+  --foreground: #f8fafc;
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+}
+
+.sidebar {
+  background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+}
+
+.card {
+  background: linear-gradient(145deg, #1e293b 0%, #334155 100%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.stat-card {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.ticket-card {
+  background: #1e293b;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  transition: all 0.3s ease;
+}
+
+.ticket-card:hover {
+  border-color: rgba(59, 130, 246, 0.5);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 40px rgba(59, 130, 246, 0.15);
+}
+
+.kanban-column {
+  background: rgba(30, 41, 59, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.priority-high {
+  border-left: 4px solid #EF4444;
+}
+
+.priority-medium {
+  border-left: 4px solid #F59E0B;
+}
+
+.priority-low {
+  border-left: 4px solid #10B981;
+}
