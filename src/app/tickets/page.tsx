@@ -90,6 +90,7 @@ export default function Tickets() {
     description: string
     priority: string
     category_id: number
+    category_name: string
     created_by: string
   }) => {
     try {
@@ -99,6 +100,20 @@ export default function Tickets() {
         body: JSON.stringify(ticket)
       })
       if (res.ok) {
+        const newTicket = await res.json()
+        // Enviar correo de notificación
+        fetch('/api/send-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ticketNumber: newTicket.ticket_number,
+            title: ticket.title,
+            description: ticket.description,
+            priority: ticket.priority,
+            category: ticket.category_name,
+            createdBy: ticket.created_by
+          })
+        })
         fetchTickets()
       }
     } catch (error) {

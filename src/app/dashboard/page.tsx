@@ -3,7 +3,6 @@ import Link from 'next/link'
 import { 
   LayoutDashboard, 
   Ticket, 
-  BarChart3, 
   Settings,
   Headphones,
   Bell,
@@ -25,6 +24,7 @@ interface Ticket {
   title: string
   priority: string
   state: string
+  category_name: string
   created_at: string
 }
 
@@ -34,6 +34,8 @@ interface UserStats {
   inProgress: number
   resolved: number
   critical: number
+  byCategory: { name: string; count: string }[]
+  byPriority: { priority: string; count: string }[]
 }
 
 export default function Dashboard() {
@@ -65,23 +67,25 @@ export default function Dashboard() {
         ticketsUrl += `?isAdmin=true`
       }
       
-      const [ticketsRes] = await Promise.all([
-        fetch(ticketsUrl)
+      const [ticketsRes, statsRes] = await Promise.all([
+        fetch(ticketsUrl),
+        fetch('/api/stats')
       ])
       const ticketsData = await ticketsRes.json()
+      const statsData = await statsRes.json()
       setTickets(ticketsData)
       setFilteredTickets(ticketsData)
       
-      // Calcular stats del usuario
       const userTickets = ticketsData
-      const userStats: UserStats = {
+      setStats({
         total: userTickets.length,
         open: userTickets.filter((t: Ticket) => t.state === 'open').length,
         inProgress: userTickets.filter((t: Ticket) => t.state === 'inProgress').length,
         resolved: userTickets.filter((t: Ticket) => t.state === 'resolved').length,
-        critical: userTickets.filter((t: Ticket) => t.priority === 'high' && t.state === 'open').length
-      }
-      setStats(userStats)
+        critical: userTickets.filter((t: Ticket) => t.priority === 'high' && t.state === 'open').length,
+        byCategory: statsData.byCategory || [],
+        byPriority: statsData.byPriority || []
+      })
     } catch (error) {
       console.error('Error fetching data:', error)
     } finally {
@@ -114,6 +118,7 @@ export default function Dashboard() {
     description: string
     priority: string
     category_id: number
+    category_name: string
     created_by: string
   }) => {
     try {
@@ -123,6 +128,20 @@ export default function Dashboard() {
         body: JSON.stringify(ticket)
       })
       if (res.ok) {
+        const newTicket = await res.json()
+        // Enviar correo
+        fetch('/api/send-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ticketNumber: newTicket.ticket_number,
+            title: ticket.title,
+            description: ticket.description,
+            priority: ticket.priority,
+            category: ticket.category_name,
+            createdBy: ticket.created_by
+          })
+        })
         fetchData()
       }
     } catch (error) {
@@ -163,6 +182,8 @@ export default function Dashboard() {
     const date = new Date(dateString)
     return date.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
   }
+
+  const totalStats = stats?.total || 1
 
   return (
     <div className="min-h-screen flex">
@@ -266,6 +287,9 @@ export default function Dashboard() {
                   </div>
                   <h3 className="text-3xl font-bold mb-1">{stats?.total || 0}</h3>
                   <p className="text-slate-400">Total Tickets</p>
+                  <div className="mt-4 h-2 bg-slate-700 rounded-full overflow-hidden">
+                    <div className="h-full bg-blue-500 rounded-full" style={{ width: '100%' }}></div>
+                  </div>
                 </div>
 
                 <div className="card rounded-2xl p-6">
@@ -276,6 +300,9 @@ export default function Dashboard() {
                   </div>
                   <h3 className="text-3xl font-bold mb-1">{stats?.open || 0}</h3>
                   <p className="text-slate-400">Abiertos</p>
+                  <div className="mt-4 h-2 bg-slate-700 rounded-full overflow-hidden">
+                    <div className="h-full bg-red-500 rounded-full" style={{ width: `${((stats?.open || 0) / totalStats) * 100}%` }}></div>
+                  </div>
                 </div>
 
                 <div className="card rounded-2xl p-6">
@@ -286,6 +313,9 @@ export default function Dashboard() {
                   </div>
                   <h3 className="text-3xl font-bold mb-1">{stats?.inProgress || 0}</h3>
                   <p className="text-slate-400">En Progreso</p>
+                  <div className="mt-4 h-2 bg-slate-700 rounded-full overflow-hidden">
+                    <div className="h-full bg-yellow-500 rounded-full" style={{ width: `${((stats?.inProgress || 0) / totalStats) * 100}%` }}></div>
+                  </div>
                 </div>
 
                 <div className="card rounded-2xl p-6">
@@ -296,6 +326,71 @@ export default function Dashboard() {
                   </div>
                   <h3 className="text-3xl font-bold mb-1">{stats?.resolved || 0}</h3>
                   <p className="text-slate-400">Resueltos</p>
+                  <div className="mt-4 h-2 bg-slate-700 rounded-full overflow-hidden">
+                    <div className="h-full bg-green-500 rounded-full" style={{ width: `${((stats?.resolved || 0) / totalStats) * 100}%` }}></div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Charts */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                <div className="card rounded-2xl p-6">
+                  <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
+                    <TrendingUp className="w-5 h-5 text-blue-400" />
+                    Tickets por Categoría
+                  </h2>
+                  <div className="space-y-4">
+                    {stats?.byCategory && stats.byCategory.length > 0 ? (
+                      stats.byCategory.slice(0, 6).map((cat, i) => (
+                        <div key={i} className="flex items-center gap-3">
+                          <span className="w-28 text-sm text-slate-400 truncate">{cat.name}</span>
+                          <div className="flex-1 h-8 bg-slate-700 rounded-full overflow-hidden">
+                            <div 
+                              className="h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-end pr-2"
+                              style={{ width: `${(parseInt(cat.count) / totalStats) * 100}%` }}
+                            >
+                              <span className="text-xs font-bold text-white">{cat.count}</span>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-slate-400 text-center py-8">Sin datos de categorías</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="card rounded-2xl p-6">
+                  <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
+                    <ArrowUpRight className="w-5 h-5 text-purple-400" />
+                    Tickets por Prioridad
+                  </h2>
+                  <div className="flex items-center justify-center h-48">
+                    {stats?.byPriority && stats.byPriority.length > 0 ? (
+                      <div className="w-full space-y-4">
+                        {stats.byPriority.map((p, i) => {
+                          const colors = { high: 'bg-red-500', medium: 'bg-yellow-500', low: 'bg-green-500' }
+                          const labels = { high: 'Alta', medium: 'Media', low: 'Baja' }
+                          const percentages = { high: 33, medium: 33, low: 34 }
+                          return (
+                            <div key={i} className="flex items-center gap-3">
+                              <span className="w-16 text-sm text-slate-400">{labels[p.priority as keyof typeof labels] || p.priority}</span>
+                              <div className="flex-1 h-8 bg-slate-700 rounded-full overflow-hidden">
+                                <div 
+                                  className={`h-full ${colors[p.priority as keyof typeof colors] || 'bg-slate-500'} rounded-full flex items-center justify-end pr-2`}
+                                  style={{ width: `${percentages[p.priority as keyof typeof percentages] || 33}%` }}
+                                >
+                                  <span className="text-xs font-bold text-white">{p.count}</span>
+                                </div>
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    ) : (
+                      <p className="text-slate-400">Sin datos de prioridad</p>
+                    )}
+                  </div>
                 </div>
               </div>
 

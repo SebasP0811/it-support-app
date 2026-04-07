@@ -10,6 +10,7 @@ interface TicketModalProps {
     description: string
     priority: string
     category_id: number
+    category_name: string
     created_by: string
   }) => void
 }
@@ -50,8 +51,16 @@ export default function TicketModal({ isOpen, onClose, onSubmit }: TicketModalPr
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     const userName = createdBy || 'Usuario'
+    const category = categories.find(c => c.id === categoryId)
     localStorage.setItem('userName', userName)
-    onSubmit({ title, description, priority, category_id: categoryId, created_by: userName })
+    onSubmit({ 
+      title, 
+      description, 
+      priority, 
+      category_id: categoryId, 
+      category_name: category?.name || 'General',
+      created_by: userName 
+    })
     setTitle('')
     setDescription('')
     setPriority('medium')
