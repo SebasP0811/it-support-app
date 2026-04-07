@@ -14,8 +14,7 @@
     "react-dom": "18.3.1",
     "lucide-react": "^0.378.0",
     "@vercel/postgres": "^0.8.0",
-    "pg": "^8.11.5",
-    "resend": "^3.2.0"
+    "pg": "^8.11.5"
   },
   "devDependencies": {
     "@types/node": "20.12.12",
