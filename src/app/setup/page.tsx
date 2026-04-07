@@ -1,6 +1,5 @@
 'use client'
 import { useEffect, useState } from 'react'
-import pool from '@/lib/db'
 import Link from 'next/link'
 
 export default function Setup() {
@@ -8,70 +7,22 @@ export default function Setup() {
   const [message, setMessage] = useState('Inicializando base de datos...')
 
   useEffect(() => {
-    initializeDatabase()
+    fetch('/api/init', { method: 'POST' })
+      .then(res => res.json())
+      .then(data => {
+        if (data.error) {
+          setStatus('error')
+          setMessage(data.error)
+        } else {
+          setStatus('success')
+          setMessage('¡Base de datos inicializada correctamente!')
+        }
+      })
+      .catch(err => {
+        setStatus('error')
+        setMessage('Error: ' + err.message)
+      })
   }, [])
-
-  const initializeDatabase = async () => {
-    try {
-      const schema = `
-        CREATE TABLE IF NOT EXISTS categories (
-          id SERIAL PRIMARY KEY,
-          name VARCHAR(100) NOT NULL,
-          description TEXT,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-
-        CREATE TABLE IF NOT EXISTS technicians (
-          id SERIAL PRIMARY KEY,
-          name VARCHAR(100) NOT NULL,
-          email VARCHAR(255) UNIQUE NOT NULL,
-          role VARCHAR(50) DEFAULT 'technician',
-          avatar_color VARCHAR(20) DEFAULT '#3B82F6',
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-
-        CREATE TABLE IF NOT EXISTS tickets (
-          id SERIAL PRIMARY KEY,
-          ticket_number VARCHAR(20) UNIQUE NOT NULL,
-          title VARCHAR(255) NOT NULL,
-          description TEXT,
-          priority VARCHAR(20) DEFAULT 'medium',
-          state VARCHAR(20) DEFAULT 'open',
-          category_id INTEGER REFERENCES categories(id),
-          technician_id INTEGER REFERENCES technicians(id),
-          created_by VARCHAR(100),
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-
-        INSERT INTO categories (name, description) VALUES 
-          ('Soporte General', 'Problemas generales de soporte técnico'),
-          ('Hardware', 'Problemas con equipos físicos'),
-          ('Software', 'Problemas con aplicaciones'),
-          ('Redes', 'Problemas de conectividad'),
-          ('Seguridad', 'Incidentes de seguridad'),
-          ('Base de Datos', 'Problemas con bases de datos'),
-          ('Servidores', 'Problemas con servidores'),
-          ('Accesos', 'Solicitudes de acceso')
-        ON CONFLICT DO NOTHING;
-
-        INSERT INTO technicians (name, email, role) VALUES 
-          ('Carlos García', 'carlos@empresa.com', 'admin'),
-          ('María López', 'maria@empresa.com', 'technician'),
-          ('Luis Rodríguez', 'luis@empresa.com', 'technician'),
-          ('Ana Martínez', 'ana@empresa.com', 'technician')
-        ON CONFLICT DO NOTHING;
-      `
-
-      await pool.query(schema)
-      setStatus('success')
-      setMessage('¡Base de datos inicializada correctamente!')
-    } catch (error) {
-      console.error('Error:', error)
-      setStatus('error')
-      setMessage('Error al inicializar: ' + String(error))
-    }
-  }
 
   return (
     <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
