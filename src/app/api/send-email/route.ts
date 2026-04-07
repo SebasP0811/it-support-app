@@ -5,12 +5,7 @@ export async function POST(request: Request) {
     const body = await request.json()
     const { ticketNumber, title, description, priority, category, createdBy } = body
 
-    console.log('=== EMAIL REQUEST ===')
-    console.log('Ticket:', ticketNumber)
-    console.log('Title:', title)
-
     const resendApiKey = process.env.RESEND_API_KEY
-    console.log('API Key exists:', !!resendApiKey)
     
     if (!resendApiKey) {
       console.error('RESEND_API_KEY not found')
@@ -18,22 +13,60 @@ export async function POST(request: Request) {
     }
 
     const priorityLabel: Record<string, string> = {
-      high: 'Alta',
-      medium: 'Media', 
-      low: 'Baja'
+      high: 'Alta 🔴',
+      medium: 'Media 🟡', 
+      low: 'Baja 🟢'
     }
 
     const htmlContent = `
-      <h1>🎫 Nuevo Ticket: ${ticketNumber}</h1>
-      <p><strong>Título:</strong> ${title}</p>
-      <p><strong>Descripción:</strong> ${description}</p>
-      <p><strong>Prioridad:</strong> ${priorityLabel[priority] || priority}</p>
-      <p><strong>Categoría:</strong> ${category}</p>
-      <p><strong>Creado por:</strong> ${createdBy}</p>
-      <p><strong>Fecha:</strong> ${new Date().toLocaleString('es-ES')}</p>
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
+        <div style="background: linear-gradient(135deg, #3B82F6, #8B5CF6); padding: 20px; text-align: center;">
+          <h1 style="color: white; margin: 0; font-size: 24px;">🎫 IT Support - Nuevo Ticket</h1>
+        </div>
+        <div style="padding: 20px; background: white;">
+          <table style="width: 100%; border-collapse: collapse;">
+            <tr>
+              <td style="padding: 8px 0; color: #64748b; font-size: 14px;">Ticket:</td>
+              <td style="padding: 8px 0; font-weight: bold; color: #1e293b; font-size: 14px;">${ticketNumber}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #64748b; font-size: 14px;">Título:</td>
+              <td style="padding: 8px 0; font-weight: bold; color: #1e293b; font-size: 14px;">${title}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #64748b; font-size: 14px;">Descripción:</td>
+              <td style="padding: 8px 0; color: #475569; font-size: 14px;">${description}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #64748b; font-size: 14px;">Prioridad:</td>
+              <td style="padding: 8px 0; font-size: 14px;">
+                <span style="background: ${priority === 'high' ? '#fee2e2' : priority === 'medium' ? '#fef3c7' : '#dcfce7'}; 
+                      color: ${priority === 'high' ? '#dc2626' : priority === 'medium' ? '#d97706' : '#16a34a'}; 
+                      padding: 4px 12px; border-radius: 20px; font-weight: bold; font-size: 12px;">
+                  ${priorityLabel[priority] || priority}
+                </span>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #64748b; font-size: 14px;">Categoría:</td>
+              <td style="padding: 8px 0; color: #1e293b; font-size: 14px;">${category}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #64748b; font-size: 14px;">Creado por:</td>
+              <td style="padding: 8px 0; color: #1e293b; font-size: 14px;">${createdBy}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #64748b; font-size: 14px;">Fecha:</td>
+              <td style="padding: 8px 0; color: #1e293b; font-size: 14px;">${new Date().toLocaleString('es-ES')}</td>
+            </tr>
+          </table>
+          
+          <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #e2e8f0; text-align: center;">
+            <p style="color: #64748b; font-size: 12px;">IT Support Hub - Sistema de Gestión de Tickets</p>
+          </div>
+        </div>
+      </div>
     `
-
-    console.log('Sending to Resend...')
 
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -42,19 +75,18 @@ export async function POST(request: Request) {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        from: 'onboarding@resend.dev',
+        from: 'IT Support <helpdesk@idata.global>',
         to: ['helpdesk@idata.global'],
-        subject: `Ticket: ${ticketNumber} - ${title}`,
+        subject: `🎫 Ticket: ${ticketNumber} - ${title}`,
         html: htmlContent
       })
     })
 
-    const responseData = await response.text()
-    console.log('Resend response status:', response.status)
-    console.log('Resend response:', responseData)
-
+    const responseData = await response.json()
+    
     if (!response.ok) {
-      return NextResponse.json({ success: false, error: responseData, status: response.status })
+      console.error('Resend error:', responseData)
+      return NextResponse.json({ success: false, error: responseData })
     }
 
     return NextResponse.json({ success: true })

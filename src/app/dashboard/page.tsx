@@ -5,18 +5,17 @@ import {
   Ticket, 
   Settings,
   Headphones,
-  Bell,
   Search,
   Plus,
   TrendingUp,
   Clock,
   CheckCircle,
   XCircle,
-  ArrowUpRight,
   RefreshCw
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import TicketModal from '@/components/TicketModal'
+import NotificationBell from '@/components/NotificationBell'
 
 interface Ticket {
   id: number
@@ -28,20 +27,9 @@ interface Ticket {
   created_at: string
 }
 
-interface UserStats {
-  total: number
-  open: number
-  inProgress: number
-  resolved: number
-  critical: number
-  byCategory: { name: string; count: string }[]
-  byPriority: { priority: string; count: string }[]
-}
-
 export default function Dashboard() {
   const [tickets, setTickets] = useState<Ticket[]>([])
   const [filteredTickets, setFilteredTickets] = useState<Ticket[]>([])
-  const [stats, setStats] = useState<UserStats | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [loading, setLoading] = useState(true)
   const [userName, setUserName] = useState('')
@@ -67,25 +55,10 @@ export default function Dashboard() {
         ticketsUrl += `?isAdmin=true`
       }
       
-      const [ticketsRes, statsRes] = await Promise.all([
-        fetch(ticketsUrl),
-        fetch('/api/stats')
-      ])
+      const ticketsRes = await fetch(ticketsUrl)
       const ticketsData = await ticketsRes.json()
-      const statsData = await statsRes.json()
       setTickets(ticketsData)
       setFilteredTickets(ticketsData)
-      
-      const userTickets = ticketsData
-      setStats({
-        total: userTickets.length,
-        open: userTickets.filter((t: Ticket) => t.state === 'open').length,
-        inProgress: userTickets.filter((t: Ticket) => t.state === 'inProgress').length,
-        resolved: userTickets.filter((t: Ticket) => t.state === 'resolved').length,
-        critical: userTickets.filter((t: Ticket) => t.priority === 'high' && t.state === 'open').length,
-        byCategory: statsData.byCategory || [],
-        byPriority: statsData.byPriority || []
-      })
     } catch (error) {
       console.error('Error fetching data:', error)
     } finally {
@@ -129,7 +102,6 @@ export default function Dashboard() {
       })
       if (res.ok) {
         const newTicket = await res.json()
-        // Enviar correo
         fetch('/api/send-email', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -183,7 +155,27 @@ export default function Dashboard() {
     return date.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
   }
 
-  const totalStats = stats?.total || 1
+  // Stats del usuario
+  const userStats = {
+    total: filteredTickets.length,
+    open: filteredTickets.filter(t => t.state === 'open').length,
+    inProgress: filteredTickets.filter(t => t.state === 'inProgress').length,
+    resolved: filteredTickets.filter(t => t.state === 'resolved' || t.state === 'closed').length,
+  }
+
+  // Gráficas del usuario
+  const byCategory = filteredTickets.reduce((acc: Record<string, number>, t) => {
+    const cat = t.category_name || 'Sin categoría'
+    acc[cat] = (acc[cat] || 0) + 1
+    return acc
+  }, {})
+
+  const byPriority = filteredTickets.reduce((acc: Record<string, number>, t) => {
+    acc[t.priority] = (acc[t.priority] || 0) + 1
+    return acc
+  }, {})
+
+  const total = filteredTickets.length || 1
 
   return (
     <div className="min-h-screen flex">
@@ -239,10 +231,7 @@ export default function Dashboard() {
             <button onClick={fetchData} className="p-3 rounded-xl bg-slate-800 hover:bg-slate-700 transition">
               <RefreshCw className="w-5 h-5 text-slate-400" />
             </button>
-            <button className="relative p-3 rounded-xl bg-slate-800 hover:bg-slate-700 transition">
-              <Bell className="w-5 h-5 text-slate-400" />
-              <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full"></span>
-            </button>
+            <NotificationBell userName={userName} isAdmin={isAdmin} />
             <div className="flex items-center gap-3 pl-4 border-l border-slate-700">
               <div className="text-right">
                 <p className="font-medium">{userName}</p>
@@ -260,7 +249,9 @@ export default function Dashboard() {
           <div className="flex items-center justify-between mb-8">
             <div>
               <h1 className="text-3xl font-bold mb-2">Dashboard</h1>
-              <p className="text-slate-400">Resumen de tus tickets</p>
+              <p className="text-slate-400">
+                {isAdmin ? 'Resumen general del sistema' : 'Resumen de tus tickets'}
+              </p>
             </div>
             <button 
               onClick={() => setIsModalOpen(true)}
@@ -285,7 +276,7 @@ export default function Dashboard() {
                       <Ticket className="w-6 h-6 text-blue-400" />
                     </div>
                   </div>
-                  <h3 className="text-3xl font-bold mb-1">{stats?.total || 0}</h3>
+                  <h3 className="text-3xl font-bold mb-1">{userStats.total}</h3>
                   <p className="text-slate-400">Total Tickets</p>
                   <div className="mt-4 h-2 bg-slate-700 rounded-full overflow-hidden">
                     <div className="h-full bg-blue-500 rounded-full" style={{ width: '100%' }}></div>
@@ -298,10 +289,10 @@ export default function Dashboard() {
                       <XCircle className="w-6 h-6 text-red-400" />
                     </div>
                   </div>
-                  <h3 className="text-3xl font-bold mb-1">{stats?.open || 0}</h3>
+                  <h3 className="text-3xl font-bold mb-1">{userStats.open}</h3>
                   <p className="text-slate-400">Abiertos</p>
                   <div className="mt-4 h-2 bg-slate-700 rounded-full overflow-hidden">
-                    <div className="h-full bg-red-500 rounded-full" style={{ width: `${((stats?.open || 0) / totalStats) * 100}%` }}></div>
+                    <div className="h-full bg-red-500 rounded-full" style={{ width: `${(userStats.open / total) * 100}%` }}></div>
                   </div>
                 </div>
 
@@ -311,10 +302,10 @@ export default function Dashboard() {
                       <Clock className="w-6 h-6 text-yellow-400" />
                     </div>
                   </div>
-                  <h3 className="text-3xl font-bold mb-1">{stats?.inProgress || 0}</h3>
+                  <h3 className="text-3xl font-bold mb-1">{userStats.inProgress}</h3>
                   <p className="text-slate-400">En Progreso</p>
                   <div className="mt-4 h-2 bg-slate-700 rounded-full overflow-hidden">
-                    <div className="h-full bg-yellow-500 rounded-full" style={{ width: `${((stats?.inProgress || 0) / totalStats) * 100}%` }}></div>
+                    <div className="h-full bg-yellow-500 rounded-full" style={{ width: `${(userStats.inProgress / total) * 100}%` }}></div>
                   </div>
                 </div>
 
@@ -324,10 +315,10 @@ export default function Dashboard() {
                       <CheckCircle className="w-6 h-6 text-green-400" />
                     </div>
                   </div>
-                  <h3 className="text-3xl font-bold mb-1">{stats?.resolved || 0}</h3>
+                  <h3 className="text-3xl font-bold mb-1">{userStats.resolved}</h3>
                   <p className="text-slate-400">Resueltos</p>
                   <div className="mt-4 h-2 bg-slate-700 rounded-full overflow-hidden">
-                    <div className="h-full bg-green-500 rounded-full" style={{ width: `${((stats?.resolved || 0) / totalStats) * 100}%` }}></div>
+                    <div className="h-full bg-green-500 rounded-full" style={{ width: `${(userStats.resolved / total) * 100}%` }}></div>
                   </div>
                 </div>
               </div>
@@ -340,55 +331,52 @@ export default function Dashboard() {
                     Tickets por Categoría
                   </h2>
                   <div className="space-y-4">
-                    {stats?.byCategory && stats.byCategory.length > 0 ? (
-                      stats.byCategory.slice(0, 6).map((cat, i) => (
-                        <div key={i} className="flex items-center gap-3">
-                          <span className="w-28 text-sm text-slate-400 truncate">{cat.name}</span>
+                    {Object.keys(byCategory).length > 0 ? (
+                      Object.entries(byCategory).slice(0, 6).map(([cat, count]) => (
+                        <div key={cat} className="flex items-center gap-3">
+                          <span className="w-28 text-sm text-slate-400 truncate">{cat}</span>
                           <div className="flex-1 h-8 bg-slate-700 rounded-full overflow-hidden">
                             <div 
                               className="h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-end pr-2"
-                              style={{ width: `${(parseInt(cat.count) / totalStats) * 100}%` }}
+                              style={{ width: `${((count as number) / total) * 100}%` }}
                             >
-                              <span className="text-xs font-bold text-white">{cat.count}</span>
+                              <span className="text-xs font-bold text-white">{count}</span>
                             </div>
                           </div>
                         </div>
                       ))
                     ) : (
-                      <p className="text-slate-400 text-center py-8">Sin datos de categorías</p>
+                      <p className="text-slate-400 text-center py-8">Sin datos</p>
                     )}
                   </div>
                 </div>
 
                 <div className="card rounded-2xl p-6">
                   <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
-                    <ArrowUpRight className="w-5 h-5 text-purple-400" />
+                    <Clock className="w-5 h-5 text-purple-400" />
                     Tickets por Prioridad
                   </h2>
-                  <div className="flex items-center justify-center h-48">
-                    {stats?.byPriority && stats.byPriority.length > 0 ? (
-                      <div className="w-full space-y-4">
-                        {stats.byPriority.map((p, i) => {
-                          const colors = { high: 'bg-red-500', medium: 'bg-yellow-500', low: 'bg-green-500' }
-                          const labels = { high: 'Alta', medium: 'Media', low: 'Baja' }
-                          const percentages = { high: 33, medium: 33, low: 34 }
-                          return (
-                            <div key={i} className="flex items-center gap-3">
-                              <span className="w-16 text-sm text-slate-400">{labels[p.priority as keyof typeof labels] || p.priority}</span>
-                              <div className="flex-1 h-8 bg-slate-700 rounded-full overflow-hidden">
-                                <div 
-                                  className={`h-full ${colors[p.priority as keyof typeof colors] || 'bg-slate-500'} rounded-full flex items-center justify-end pr-2`}
-                                  style={{ width: `${percentages[p.priority as keyof typeof percentages] || 33}%` }}
-                                >
-                                  <span className="text-xs font-bold text-white">{p.count}</span>
-                                </div>
+                  <div className="space-y-4">
+                    {Object.keys(byPriority).length > 0 ? (
+                      Object.entries(byPriority).map(([prio, count]) => {
+                        const colors: Record<string, string> = { high: 'bg-red-500', medium: 'bg-yellow-500', low: 'bg-green-500' }
+                        const labels: Record<string, string> = { high: 'Alta', medium: 'Media', low: 'Baja' }
+                        return (
+                          <div key={prio} className="flex items-center gap-3">
+                            <span className="w-16 text-sm text-slate-400">{labels[prio] || prio}</span>
+                            <div className="flex-1 h-8 bg-slate-700 rounded-full overflow-hidden">
+                              <div 
+                                className={`h-full ${colors[prio] || 'bg-slate-500'} rounded-full flex items-center justify-end pr-2`}
+                                style={{ width: `${((count as number) / total) * 100}%` }}
+                              >
+                                <span className="text-xs font-bold text-white">{count}</span>
                               </div>
                             </div>
-                          )
-                        })}
-                      </div>
+                          </div>
+                        )
+                      })
                     ) : (
-                      <p className="text-slate-400">Sin datos de prioridad</p>
+                      <p className="text-slate-400 text-center py-8">Sin datos</p>
                     )}
                   </div>
                 </div>

@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import TicketModal from '@/components/TicketModal'
+import NotificationBell from '@/components/NotificationBell'
 
 interface Ticket {
   id: number
@@ -235,10 +236,7 @@ export default function Tickets() {
             <button onClick={fetchTickets} className="p-3 rounded-xl bg-slate-800 hover:bg-slate-700 transition">
               <RefreshCw className="w-5 h-5 text-slate-400" />
             </button>
-            <button className="relative p-3 rounded-xl bg-slate-800 hover:bg-slate-700 transition">
-              <Bell className="w-5 h-5 text-slate-400" />
-              <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full"></span>
-            </button>
+            <NotificationBell userName={userName} isAdmin={isAdmin} />
             <div className="flex items-center gap-3 pl-4 border-l border-slate-700">
               <div className="text-right">
                 <p className="font-medium">{userName}</p>
