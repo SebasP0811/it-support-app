@@ -1,6 +1,6 @@
 'use client'
 import { X } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 interface TicketModalProps {
   isOpen: boolean
@@ -9,25 +9,50 @@ interface TicketModalProps {
     title: string
     description: string
     priority: string
-    category: string
+    category_id: number
+    created_by: string
   }) => void
+}
+
+interface Category {
+  id: number
+  name: string
 }
 
 export default function TicketModal({ isOpen, onClose, onSubmit }: TicketModalProps) {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [priority, setPriority] = useState('medium')
-  const [category, setCategory] = useState('soporte')
+  const [categoryId, setCategoryId] = useState(1)
+  const [createdBy, setCreatedBy] = useState('')
+  const [categories, setCategories] = useState<Category[]>([])
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchCategories()
+    }
+  }, [isOpen])
+
+  const fetchCategories = async () => {
+    try {
+      const res = await fetch('/api/categories')
+      const data = await res.json()
+      setCategories(data)
+    } catch (error) {
+      console.error('Error fetching categories:', error)
+    }
+  }
 
   if (!isOpen) return null
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    onSubmit({ title, description, priority, category })
+    onSubmit({ title, description, priority, category_id: categoryId, created_by: createdBy || 'Usuario' })
     setTitle('')
     setDescription('')
     setPriority('medium')
-    setCategory('soporte')
+    setCategoryId(1)
+    setCreatedBy('')
     onClose()
   }
 
@@ -86,20 +111,26 @@ export default function TicketModal({ isOpen, onClose, onSubmit }: TicketModalPr
             <div>
               <label className="block text-sm font-medium mb-2">Categoría</label>
               <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
+                value={categoryId}
+                onChange={(e) => setCategoryId(parseInt(e.target.value))}
                 className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 focus:outline-none focus:border-blue-500"
               >
-                <option value="soporte">Soporte General</option>
-                <option value="hardware">Hardware</option>
-                <option value="software">Software</option>
-                <option value="red">Redes</option>
-                <option value="seguridad">Seguridad</option>
-                <option value="bd">Base de Datos</option>
-                <option value="servidor">Servidores</option>
-                <option value="acceso">Accesos</option>
+                {categories.map((cat) => (
+                  <option key={cat.id} value={cat.id}>{cat.name}</option>
+                ))}
               </select>
             </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">Tu Nombre</label>
+            <input
+              type="text"
+              value={createdBy}
+              onChange={(e) => setCreatedBy(e.target.value)}
+              placeholder="Ej: Juan Pérez"
+              className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 placeholder-slate-500 focus:outline-none focus:border-blue-500"
+            />
           </div>
 
           <div className="flex gap-4 pt-4">

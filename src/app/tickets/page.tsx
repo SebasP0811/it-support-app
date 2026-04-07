@@ -13,54 +13,79 @@ import {
   Grid,
   List,
   User,
-  AlertCircle,
   Clock,
-  CheckCircle
+  RefreshCw
 } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import TicketModal from '@/components/TicketModal'
 
 interface Ticket {
-  id: string
+  id: number
+  ticket_number: string
   title: string
   description: string
   priority: string
-  category: string
-  state: 'open' | 'inProgress' | 'resolved' | 'closed'
-  assignee: string
-  created: string
+  state: string
+  category_name: string
+  technician_name: string
+  created_by: string
+  created_at: string
 }
 
 export default function Tickets() {
   const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban')
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [tickets, setTickets] = useState<Ticket[]>([
-    { id: 'TKT-001', title: 'Error crítico en servidor principal', description: 'El servidor principal presenta errores críticos', priority: 'high', category: 'servidor', state: 'open', assignee: 'Carlos G.', created: '5 min' },
-    { id: 'TKT-002', title: 'Solicitud de acceso VPN', description: 'Necesito acceso VPN para trabajar desde casa', priority: 'medium', category: 'acceso', state: 'inProgress', assignee: 'María L.', created: '1 hora' },
-    { id: 'TKT-003', title: 'Problema con impresoras red', description: 'Las impresoras de red no funcionan', priority: 'low', category: 'hardware', state: 'resolved', assignee: 'Luis R.', created: '2 horas' },
-    { id: 'TKT-004', title: 'Actualización Windows Server', description: 'La actualización automática falló', priority: 'high', category: 'servidor', state: 'open', assignee: 'Ana M.', created: '30 min' },
-    { id: 'TKT-005', title: 'Backup no completado', description: 'El backup nocturno no se completó', priority: 'medium', category: 'bd', state: 'inProgress', assignee: 'Carlos G.', created: '3 horas' },
-  ])
+  const [tickets, setTickets] = useState<Ticket[]>([])
+  const [loading, setLoading] = useState(true)
 
-  const generateId = () => {
-    const num = (tickets.length + 1).toString().padStart(3, '0')
-    return `TKT-${num}`
+  const fetchTickets = async () => {
+    try {
+      const res = await fetch('/api/tickets')
+      const data = await res.json()
+      setTickets(data)
+    } catch (error) {
+      console.error('Error fetching tickets:', error)
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const handleCreateTicket = (ticket: {
+  useEffect(() => {
+    fetchTickets()
+  }, [])
+
+  const handleCreateTicket = async (ticket: {
     title: string
     description: string
     priority: string
-    category: string
+    category_id: number
+    created_by: string
   }) => {
-    const newTicket: Ticket = {
-      id: generateId(),
-      ...ticket,
-      state: 'open',
-      assignee: 'Sin asignar',
-      created: 'Ahora'
+    try {
+      const res = await fetch('/api/tickets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(ticket)
+      })
+      if (res.ok) {
+        fetchTickets()
+      }
+    } catch (error) {
+      console.error('Error creating ticket:', error)
     }
-    setTickets([newTicket, ...tickets])
+  }
+
+  const handleUpdateTicket = async (id: number, state: string) => {
+    try {
+      await fetch('/api/tickets', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, state })
+      })
+      fetchTickets()
+    } catch (error) {
+      console.error('Error updating ticket:', error)
+    }
   }
 
   const ticketsByState = {
@@ -88,18 +113,9 @@ export default function Tickets() {
     }
   }
 
-  const getCategoryLabel = (category: string) => {
-    const labels: Record<string, string> = {
-      soporte: 'Soporte',
-      hardware: 'Hardware',
-      software: 'Software',
-      red: 'Redes',
-      seguridad: 'Seguridad',
-      bd: 'Base de Datos',
-      servidor: 'Servidor',
-      acceso: 'Accesos'
-    }
-    return labels[category] || category
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString)
+    return date.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
   }
 
   const renderTicketCard = (ticket: Ticket) => (
@@ -111,21 +127,21 @@ export default function Tickets() {
       }`}
     >
       <div className="flex items-start justify-between mb-2">
-        <span className="text-xs font-mono text-slate-500">{ticket.id}</span>
+        <span className="text-xs font-mono text-slate-500">{ticket.ticket_number}</span>
         <span className={`px-2 py-1 rounded-lg text-xs font-medium ${getPriorityBadge(ticket.priority)}`}>
           {getPriorityLabel(ticket.priority)}
         </span>
       </div>
       <h4 className="font-medium text-slate-200 mb-2 line-clamp-2">{ticket.title}</h4>
-      <p className="text-xs text-slate-500 mb-3">{getCategoryLabel(ticket.category)}</p>
+      <p className="text-xs text-slate-500 mb-3">{ticket.category_name}</p>
       <div className="flex items-center justify-between text-sm">
         <div className="flex items-center gap-2 text-slate-400">
           <User className="w-4 h-4" />
-          {ticket.assignee}
+          {ticket.technician_name || 'Sin asignar'}
         </div>
         <div className="flex items-center gap-1 text-slate-500">
           <Clock className="w-4 h-4" />
-          {ticket.created}
+          {formatDate(ticket.created_at)}
         </div>
       </div>
     </div>
@@ -196,6 +212,12 @@ export default function Tickets() {
           </div>
           
           <div className="flex items-center gap-4">
+            <button 
+              onClick={fetchTickets}
+              className="p-3 rounded-xl bg-slate-800 hover:bg-slate-700 transition"
+            >
+              <RefreshCw className="w-5 h-5 text-slate-400" />
+            </button>
             <button className="relative p-3 rounded-xl bg-slate-800 hover:bg-slate-700 transition">
               <Bell className="w-5 h-5 text-slate-400" />
               <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full"></span>
@@ -249,118 +271,121 @@ export default function Tickets() {
             </div>
           </div>
 
-          {/* Kanban Board */}
-          {viewMode === 'kanban' && (
-            <div className="grid grid-cols-4 gap-6">
-              {/* Open */}
-              <div className="kanban-column rounded-2xl p-4">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-                    <h3 className="font-bold">Abiertos</h3>
-                  </div>
-                  <span className="px-2 py-1 bg-red-500/20 text-red-400 rounded-lg text-sm font-medium">
-                    {ticketsByState.open.length}
-                  </span>
-                </div>
-                <div className="space-y-3">
-                  {ticketsByState.open.map(renderTicketCard)}
-                </div>
-              </div>
-
-              {/* In Progress */}
-              <div className="kanban-column rounded-2xl p-4">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
-                    <h3 className="font-bold">En Progreso</h3>
-                  </div>
-                  <span className="px-2 py-1 bg-yellow-500/20 text-yellow-400 rounded-lg text-sm font-medium">
-                    {ticketsByState.inProgress.length}
-                  </span>
-                </div>
-                <div className="space-y-3">
-                  {ticketsByState.inProgress.map(renderTicketCard)}
-                </div>
-              </div>
-
-              {/* Resolved */}
-              <div className="kanban-column rounded-2xl p-4">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                    <h3 className="font-bold">Resueltos</h3>
-                  </div>
-                  <span className="px-2 py-1 bg-green-500/20 text-green-400 rounded-lg text-sm font-medium">
-                    {ticketsByState.resolved.length}
-                  </span>
-                </div>
-                <div className="space-y-3">
-                  {ticketsByState.resolved.map(renderTicketCard)}
-                </div>
-              </div>
-
-              {/* Closed */}
-              <div className="kanban-column rounded-2xl p-4">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 bg-slate-500 rounded-full"></div>
-                    <h3 className="font-bold">Cerrados</h3>
-                  </div>
-                  <span className="px-2 py-1 bg-slate-500/20 text-slate-400 rounded-lg text-sm font-medium">
-                    {ticketsByState.closed.length}
-                  </span>
-                </div>
-                <div className="space-y-3">
-                  {ticketsByState.closed.map(renderTicketCard)}
-                </div>
-              </div>
+          {loading ? (
+            <div className="flex items-center justify-center h-64">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
             </div>
-          )}
+          ) : (
+            <>
+              {/* Kanban Board */}
+              {viewMode === 'kanban' && (
+                <div className="grid grid-cols-4 gap-6">
+                  <div className="kanban-column rounded-2xl p-4">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                        <h3 className="font-bold">Abiertos</h3>
+                      </div>
+                      <span className="px-2 py-1 bg-red-500/20 text-red-400 rounded-lg text-sm font-medium">
+                        {ticketsByState.open.length}
+                      </span>
+                    </div>
+                    <div className="space-y-3">
+                      {ticketsByState.open.map(renderTicketCard)}
+                    </div>
+                  </div>
 
-          {/* List View */}
-          {viewMode === 'list' && (
-            <div className="card rounded-2xl overflow-hidden">
-              <table className="w-full">
-                <thead className="bg-slate-800/50">
-                  <tr>
-                    <th className="text-left px-6 py-4 font-medium text-slate-400">ID</th>
-                    <th className="text-left px-6 py-4 font-medium text-slate-400">Título</th>
-                    <th className="text-left px-6 py-4 font-medium text-slate-400">Categoría</th>
-                    <th className="text-left px-6 py-4 font-medium text-slate-400">Prioridad</th>
-                    <th className="text-left px-6 py-4 font-medium text-slate-400">Estado</th>
-                    <th className="text-left px-6 py-4 font-medium text-slate-400">Asignado</th>
-                    <th className="text-left px-6 py-4 font-medium text-slate-400">Creado</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-700/50">
-                  {tickets.map((ticket) => (
-                    <tr key={ticket.id} className="hover:bg-slate-800/30 transition cursor-pointer">
-                      <td className="px-6 py-4 font-mono text-slate-400">{ticket.id}</td>
-                      <td className="px-6 py-4 font-medium">{ticket.title}</td>
-                      <td className="px-6 py-4 text-slate-400">{getCategoryLabel(ticket.category)}</td>
-                      <td className="px-6 py-4">
-                        <span className={`px-3 py-1 rounded-lg text-sm font-medium ${getPriorityBadge(ticket.priority)}`}>
-                          {getPriorityLabel(ticket.priority)}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-slate-400">
-                        {ticket.state === 'open' ? 'Abierto' : 
-                         ticket.state === 'inProgress' ? 'En Progreso' : 
-                         ticket.state === 'resolved' ? 'Resuelto' : 'Cerrado'}
-                      </td>
-                      <td className="px-6 py-4 text-slate-400">{ticket.assignee}</td>
-                      <td className="px-6 py-4 text-slate-500">{ticket.created}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  <div className="kanban-column rounded-2xl p-4">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
+                        <h3 className="font-bold">En Progreso</h3>
+                      </div>
+                      <span className="px-2 py-1 bg-yellow-500/20 text-yellow-400 rounded-lg text-sm font-medium">
+                        {ticketsByState.inProgress.length}
+                      </span>
+                    </div>
+                    <div className="space-y-3">
+                      {ticketsByState.inProgress.map(renderTicketCard)}
+                    </div>
+                  </div>
+
+                  <div className="kanban-column rounded-2xl p-4">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                        <h3 className="font-bold">Resueltos</h3>
+                      </div>
+                      <span className="px-2 py-1 bg-green-500/20 text-green-400 rounded-lg text-sm font-medium">
+                        {ticketsByState.resolved.length}
+                      </span>
+                    </div>
+                    <div className="space-y-3">
+                      {ticketsByState.resolved.map(renderTicketCard)}
+                    </div>
+                  </div>
+
+                  <div className="kanban-column rounded-2xl p-4">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 bg-slate-500 rounded-full"></div>
+                        <h3 className="font-bold">Cerrados</h3>
+                      </div>
+                      <span className="px-2 py-1 bg-slate-500/20 text-slate-400 rounded-lg text-sm font-medium">
+                        {ticketsByState.closed.length}
+                      </span>
+                    </div>
+                    <div className="space-y-3">
+                      {ticketsByState.closed.map(renderTicketCard)}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* List View */}
+              {viewMode === 'list' && (
+                <div className="card rounded-2xl overflow-hidden">
+                  <table className="w-full">
+                    <thead className="bg-slate-800/50">
+                      <tr>
+                        <th className="text-left px-6 py-4 font-medium text-slate-400">ID</th>
+                        <th className="text-left px-6 py-4 font-medium text-slate-400">Título</th>
+                        <th className="text-left px-6 py-4 font-medium text-slate-400">Categoría</th>
+                        <th className="text-left px-6 py-4 font-medium text-slate-400">Prioridad</th>
+                        <th className="text-left px-6 py-4 font-medium text-slate-400">Estado</th>
+                        <th className="text-left px-6 py-4 font-medium text-slate-400">Asignado</th>
+                        <th className="text-left px-6 py-4 font-medium text-slate-400">Fecha</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-700/50">
+                      {tickets.map((ticket) => (
+                        <tr key={ticket.id} className="hover:bg-slate-800/30 transition cursor-pointer">
+                          <td className="px-6 py-4 font-mono text-slate-400">{ticket.ticket_number}</td>
+                          <td className="px-6 py-4 font-medium">{ticket.title}</td>
+                          <td className="px-6 py-4 text-slate-400">{ticket.category_name}</td>
+                          <td className="px-6 py-4">
+                            <span className={`px-3 py-1 rounded-lg text-sm font-medium ${getPriorityBadge(ticket.priority)}`}>
+                              {getPriorityLabel(ticket.priority)}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-slate-400">
+                            {ticket.state === 'open' ? 'Abierto' : 
+                             ticket.state === 'inProgress' ? 'En Progreso' : 
+                             ticket.state === 'resolved' ? 'Resuelto' : 'Cerrado'}
+                          </td>
+                          <td className="px-6 py-4 text-slate-400">{ticket.technician_name || 'Sin asignar'}</td>
+                          <td className="px-6 py-4 text-slate-500">{formatDate(ticket.created_at)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </>
           )}
         </div>
       </main>
 
-      {/* Modal */}
       <TicketModal 
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)}

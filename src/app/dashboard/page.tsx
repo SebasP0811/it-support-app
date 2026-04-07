@@ -14,56 +14,81 @@ import {
   CheckCircle,
   XCircle,
   ArrowUpRight,
-  ArrowDownRight
+  ArrowDownRight,
+  RefreshCw
 } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import TicketModal from '@/components/TicketModal'
 
 interface Ticket {
-  id: string
+  id: number
+  ticket_number: string
   title: string
-  description: string
   priority: string
-  category: string
-  state: 'open' | 'inProgress' | 'resolved' | 'closed'
-  assignee: string
-  created: string
+  state: string
+  created_at: string
+}
+
+interface Stats {
+  total: number
+  open: number
+  inProgress: number
+  resolved: number
+  critical: number
+  byCategory: { name: string; count: string }[]
+  byPriority: { priority: string; count: string }[]
 }
 
 export default function Dashboard() {
-  const [tickets, setTickets] = useState<Ticket[]>([
-    { id: 'TKT-001', title: 'Error crítico en servidor principal', description: '', priority: 'high', category: 'servidor', state: 'open', assignee: 'Carlos G.', created: '5 min' },
-    { id: 'TKT-002', title: 'Solicitud de acceso VPN', description: '', priority: 'medium', category: 'acceso', state: 'inProgress', assignee: 'María L.', created: '1 hora' },
-    { id: 'TKT-003', title: 'Problema con impresoras red', description: '', priority: 'low', category: 'hardware', state: 'resolved', assignee: 'Luis R.', created: '2 horas' },
-    { id: 'TKT-004', title: 'Actualización Windows Server', description: '', priority: 'high', category: 'servidor', state: 'open', assignee: 'Ana M.', created: '30 min' },
-    { id: 'TKT-005', title: 'Backup no completado', description: '', priority: 'medium', category: 'bd', state: 'inProgress', assignee: 'Carlos G.', created: '3 horas' },
-  ])
-
+  const [tickets, setTickets] = useState<Ticket[]>([])
+  const [stats, setStats] = useState<Stats | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [loading, setLoading] = useState(true)
 
-  const handleCreateTicket = (ticket: {
+  const fetchData = async () => {
+    try {
+      const [ticketsRes, statsRes] = await Promise.all([
+        fetch('/api/tickets'),
+        fetch('/api/stats')
+      ])
+      const ticketsData = await ticketsRes.json()
+      const statsData = await statsRes.json()
+      setTickets(ticketsData.slice(0, 5))
+      setStats(statsData)
+    } catch (error) {
+      console.error('Error fetching data:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchData()
+  }, [])
+
+  const handleCreateTicket = async (ticket: {
     title: string
     description: string
     priority: string
-    category: string
+    category_id: number
+    created_by: string
   }) => {
-    const newTicket: Ticket = {
-      id: `TKT-${(tickets.length + 1).toString().padStart(3, '0')}`,
-      ...ticket,
-      state: 'open',
-      assignee: 'Sin asignar',
-      created: 'Ahora'
+    try {
+      const res = await fetch('/api/tickets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(ticket)
+      })
+      if (res.ok) {
+        fetchData()
+      }
+    } catch (error) {
+      console.error('Error creating ticket:', error)
     }
-    setTickets([newTicket, ...tickets])
   }
 
-  const openTickets = tickets.filter(t => t.state === 'open').length
-  const inProgressTickets = tickets.filter(t => t.state === 'inProgress').length
-  const resolvedTickets = tickets.filter(t => t.state === 'resolved' || t.state === 'closed').length
-  const criticalTickets = tickets.filter(t => t.priority === 'high' && t.state === 'open').length
-
-  const getPriorityClass = (status: string) => {
-    switch (status) {
+  const getPriorityClass = (priority: string) => {
+    switch (priority) {
       case 'high': return 'priority-high'
       case 'medium': return 'priority-medium'
       case 'low': return 'priority-low'
@@ -89,6 +114,11 @@ export default function Dashboard() {
       case 'closed': return 'Cerrado'
       default: return state
     }
+  }
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString)
+    return date.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
   }
 
   return (
@@ -149,13 +179,19 @@ export default function Dashboard() {
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
               <input 
                 type="text"
-                placeholder="Buscar tickets, clientes..."
+                placeholder="Buscar tickets..."
                 className="w-full pl-12 pr-4 py-3 bg-slate-800/50 border border-slate-700 rounded-xl text-slate-300 placeholder-slate-500 focus:outline-none focus:border-blue-500"
               />
             </div>
           </div>
           
           <div className="flex items-center gap-4">
+            <button 
+              onClick={fetchData}
+              className="p-3 rounded-xl bg-slate-800 hover:bg-slate-700 transition"
+            >
+              <RefreshCw className="w-5 h-5 text-slate-400" />
+            </button>
             <button className="relative p-3 rounded-xl bg-slate-800 hover:bg-slate-700 transition">
               <Bell className="w-5 h-5 text-slate-400" />
               <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full"></span>
@@ -188,132 +224,161 @@ export default function Dashboard() {
             </button>
           </div>
 
-          {/* Stats Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <div className="card rounded-2xl p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="w-12 h-12 bg-blue-500/20 rounded-xl flex items-center justify-center">
-                  <Ticket className="w-6 h-6 text-blue-400" />
-                </div>
-                <div className="flex items-center gap-1 text-green-400 text-sm">
-                  <ArrowUpRight className="w-4 h-4" />
-                  +12%
-                </div>
-              </div>
-              <h3 className="text-3xl font-bold mb-1">{openTickets}</h3>
-              <p className="text-slate-400">Tickets Activos</p>
-              <div className="mt-4 h-2 bg-slate-700 rounded-full overflow-hidden">
-                <div className="h-full bg-blue-500 rounded-full" style={{ width: `${(openTickets / tickets.length) * 100}%` }}></div>
-              </div>
+          {loading ? (
+            <div className="flex items-center justify-center h-64">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
             </div>
-
-            <div className="card rounded-2xl p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="w-12 h-12 bg-purple-500/20 rounded-xl flex items-center justify-center">
-                  <Clock className="w-6 h-6 text-purple-400" />
-                </div>
-                <div className="flex items-center gap-1 text-yellow-400 text-sm">
-                  <ArrowDownRight className="w-4 h-4" />
-                  -8%
-                </div>
-              </div>
-              <h3 className="text-3xl font-bold mb-1">{inProgressTickets}</h3>
-              <p className="text-slate-400">En Progreso</p>
-              <div className="mt-4 h-2 bg-slate-700 rounded-full overflow-hidden">
-                <div className="h-full bg-purple-500 rounded-full" style={{ width: `${(inProgressTickets / tickets.length) * 100}%` }}></div>
-              </div>
-            </div>
-
-            <div className="card rounded-2xl p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="w-12 h-12 bg-green-500/20 rounded-xl flex items-center justify-center">
-                  <CheckCircle className="w-6 h-6 text-green-400" />
-                </div>
-                <div className="flex items-center gap-1 text-green-400 text-sm">
-                  <ArrowUpRight className="w-4 h-4" />
-                  +15%
-                </div>
-              </div>
-              <h3 className="text-3xl font-bold mb-1">{resolvedTickets}</h3>
-              <p className="text-slate-400">Resueltos</p>
-              <div className="mt-4 h-2 bg-slate-700 rounded-full overflow-hidden">
-                <div className="h-full bg-green-500 rounded-full" style={{ width: `${(resolvedTickets / tickets.length) * 100}%` }}></div>
-              </div>
-            </div>
-
-            <div className="card rounded-2xl p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="w-12 h-12 bg-red-500/20 rounded-xl flex items-center justify-center">
-                  <XCircle className="w-6 h-6 text-red-400" />
-                </div>
-                <div className="flex items-center gap-1 text-red-400 text-sm">
-                  <ArrowDownRight className="w-4 h-4" />
-                  -3%
-                </div>
-              </div>
-              <h3 className="text-3xl font-bold mb-1">{criticalTickets}</h3>
-              <p className="text-slate-400">Críticos</p>
-              <div className="mt-4 h-2 bg-slate-700 rounded-full overflow-hidden">
-                <div className="h-full bg-red-500 rounded-full" style={{ width: `${(criticalTickets / openTickets) * 100 || 0}%` }}></div>
-              </div>
-            </div>
-          </div>
-
-          {/* Recent Tickets */}
-          <div className="card rounded-2xl p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold">Tickets Recientes</h2>
-              <Link href="/tickets" className="text-blue-400 hover:text-blue-300 text-sm font-medium">
-                Ver todos →
-              </Link>
-            </div>
-            <div className="space-y-3">
-              {tickets.slice(0, 5).map((ticket) => (
-                <div 
-                  key={ticket.id}
-                  className={`ticket-card rounded-xl p-4 ${getPriorityClass(ticket.priority)}`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div>
-                        <p className="font-medium text-slate-200">{ticket.title}</p>
-                        <p className="text-sm text-slate-400">{ticket.id}</p>
-                      </div>
+          ) : (
+            <>
+              {/* Stats Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <div className="card rounded-2xl p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="w-12 h-12 bg-blue-500/20 rounded-xl flex items-center justify-center">
+                      <Ticket className="w-6 h-6 text-blue-400" />
                     </div>
-                    <div className="flex items-center gap-3">
-                      <span className={`px-3 py-1 rounded-lg text-sm font-medium ${getStatusBadge(ticket.state)}`}>
-                        {getStateLabel(ticket.state)}
-                      </span>
-                      <span className="text-slate-500 text-sm">{ticket.created}</span>
+                    <div className="flex items-center gap-1 text-green-400 text-sm">
+                      <ArrowUpRight className="w-4 h-4" />
                     </div>
                   </div>
+                  <h3 className="text-3xl font-bold mb-1">{stats?.open || 0}</h3>
+                  <p className="text-slate-400">Tickets Abiertos</p>
+                  <div className="mt-4 h-2 bg-slate-700 rounded-full overflow-hidden">
+                    <div className="h-full bg-blue-500 rounded-full" style={{ width: `${((stats?.open || 0) / (stats?.total || 1)) * 100}%` }}></div>
+                  </div>
                 </div>
-              ))}
-            </div>
-          </div>
 
-          {/* Charts Placeholder */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
-            <div className="card rounded-2xl p-6">
-              <h2 className="text-xl font-bold mb-6">Tendencia de Tickets</h2>
-              <div className="h-64 flex items-center justify-center bg-slate-800/30 rounded-xl">
-                <div className="text-center">
-                  <TrendingUp className="w-16 h-16 text-blue-400 mx-auto mb-4" />
-                  <p className="text-slate-400">Gráfico de tendencias</p>
+                <div className="card rounded-2xl p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="w-12 h-12 bg-purple-500/20 rounded-xl flex items-center justify-center">
+                      <Clock className="w-6 h-6 text-purple-400" />
+                    </div>
+                  </div>
+                  <h3 className="text-3xl font-bold mb-1">{stats?.inProgress || 0}</h3>
+                  <p className="text-slate-400">En Progreso</p>
+                  <div className="mt-4 h-2 bg-slate-700 rounded-full overflow-hidden">
+                    <div className="h-full bg-purple-500 rounded-full" style={{ width: `${((stats?.inProgress || 0) / (stats?.total || 1)) * 100}%` }}></div>
+                  </div>
+                </div>
+
+                <div className="card rounded-2xl p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="w-12 h-12 bg-green-500/20 rounded-xl flex items-center justify-center">
+                      <CheckCircle className="w-6 h-6 text-green-400" />
+                    </div>
+                  </div>
+                  <h3 className="text-3xl font-bold mb-1">{stats?.resolved || 0}</h3>
+                  <p className="text-slate-400">Resueltos</p>
+                  <div className="mt-4 h-2 bg-slate-700 rounded-full overflow-hidden">
+                    <div className="h-full bg-green-500 rounded-full" style={{ width: `${((stats?.resolved || 0) / (stats?.total || 1)) * 100}%` }}></div>
+                  </div>
+                </div>
+
+                <div className="card rounded-2xl p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="w-12 h-12 bg-red-500/20 rounded-xl flex items-center justify-center">
+                      <XCircle className="w-6 h-6 text-red-400" />
+                    </div>
+                  </div>
+                  <h3 className="text-3xl font-bold mb-1">{stats?.critical || 0}</h3>
+                  <p className="text-slate-400">Críticos</p>
+                  <div className="mt-4 h-2 bg-slate-700 rounded-full overflow-hidden">
+                    <div className="h-full bg-red-500 rounded-full" style={{ width: `${((stats?.critical || 0) / (stats?.open || 1)) * 100}%` }}></div>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div className="card rounded-2xl p-6">
-              <h2 className="text-xl font-bold mb-6">Tickets por Categoría</h2>
-              <div className="h-64 flex items-center justify-center bg-slate-800/30 rounded-xl">
-                <div className="text-center">
-                  <BarChart3 className="w-16 h-16 text-purple-400 mx-auto mb-4" />
-                  <p className="text-slate-400">Distribución por categoría</p>
+              {/* Recent Tickets */}
+              <div className="card rounded-2xl p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-xl font-bold">Tickets Recientes</h2>
+                  <Link href="/tickets" className="text-blue-400 hover:text-blue-300 text-sm font-medium">
+                    Ver todos →
+                  </Link>
+                </div>
+                <div className="space-y-3">
+                  {tickets.length === 0 ? (
+                    <p className="text-slate-400 text-center py-8">No hay tickets aún</p>
+                  ) : (
+                    tickets.map((ticket) => (
+                      <div 
+                        key={ticket.id}
+                        className={`ticket-card rounded-xl p-4 ${getPriorityClass(ticket.priority)}`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-medium text-slate-200">{ticket.title}</p>
+                            <p className="text-sm text-slate-400">{ticket.ticket_number}</p>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className={`px-3 py-1 rounded-lg text-sm font-medium ${getStatusBadge(ticket.state)}`}>
+                              {getStateLabel(ticket.state)}
+                            </span>
+                            <span className="text-slate-500 text-sm">{formatDate(ticket.created_at)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
-            </div>
-          </div>
+
+              {/* Charts */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
+                <div className="card rounded-2xl p-6">
+                  <h2 className="text-xl font-bold mb-6">Tickets por Categoría</h2>
+                  <div className="h-64 flex items-center justify-center bg-slate-800/30 rounded-xl">
+                    {stats?.byCategory && stats.byCategory.length > 0 ? (
+                      <div className="w-full px-6 space-y-3">
+                        {stats.byCategory.slice(0, 5).map((cat, i) => (
+                          <div key={i} className="flex items-center gap-3">
+                            <span className="w-24 text-sm text-slate-400 truncate">{cat.name}</span>
+                            <div className="flex-1 h-6 bg-slate-700 rounded-full overflow-hidden">
+                              <div 
+                                className="h-full bg-blue-500 rounded-full"
+                                style={{ width: `${(parseInt(cat.count) / (stats.total || 1)) * 100}%` }}
+                              ></div>
+                            </div>
+                            <span className="text-sm font-medium">{cat.count}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-slate-400">Sin datos</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="card rounded-2xl p-6">
+                  <h2 className="text-xl font-bold mb-6">Tickets por Prioridad</h2>
+                  <div className="h-64 flex items-center justify-center bg-slate-800/30 rounded-xl">
+                    {stats?.byPriority && stats.byPriority.length > 0 ? (
+                      <div className="w-full px-6 space-y-3">
+                        {stats.byPriority.map((p, i) => {
+                          const colors = { high: 'bg-red-500', medium: 'bg-yellow-500', low: 'bg-green-500' }
+                          const labels = { high: 'Alta', medium: 'Media', low: 'Baja' }
+                          return (
+                            <div key={i} className="flex items-center gap-3">
+                              <span className="w-24 text-sm text-slate-400">{labels[p.priority as keyof typeof labels] || p.priority}</span>
+                              <div className="flex-1 h-6 bg-slate-700 rounded-full overflow-hidden">
+                                <div 
+                                  className={`h-full rounded-full ${colors[p.priority as keyof typeof colors] || 'bg-slate-500'}`}
+                                  style={{ width: `${(parseInt(p.count) / (stats.total || 1)) * 100}%` }}
+                                ></div>
+                              </div>
+                              <span className="text-sm font-medium">{p.count}</span>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    ) : (
+                      <p className="text-slate-400">Sin datos</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </main>
 
