@@ -9,7 +9,6 @@ import {
   Bell,
   Search,
   Plus,
-  Filter,
   Grid,
   List,
   User,
@@ -36,17 +35,11 @@ export default function Tickets() {
   const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [tickets, setTickets] = useState<Ticket[]>([])
+  const [filteredTickets, setFilteredTickets] = useState<Ticket[]>([])
   const [loading, setLoading] = useState(true)
   const [userName, setUserName] = useState('')
   const [isAdmin, setIsAdmin] = useState(false)
-
-  useEffect(() => {
-    const savedName = localStorage.getItem('userName') || ''
-    const adminStatus = localStorage.getItem('isAdmin') === 'true'
-    setUserName(savedName)
-    setIsAdmin(adminStatus)
-    fetchTickets()
-  }, [])
+  const [searchQuery, setSearchQuery] = useState('')
 
   const fetchTickets = async () => {
     try {
@@ -63,6 +56,7 @@ export default function Tickets() {
       const res = await fetch(url)
       const data = await res.json()
       setTickets(data)
+      setFilteredTickets(data)
     } catch (error) {
       console.error('Error fetching tickets:', error)
     } finally {
@@ -77,6 +71,19 @@ export default function Tickets() {
     setIsAdmin(adminStatus)
     fetchTickets()
   }, [])
+
+  useEffect(() => {
+    if (searchQuery.trim() === '') {
+      setFilteredTickets(tickets)
+    } else {
+      const filtered = tickets.filter(ticket => 
+        ticket.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        ticket.ticket_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        ticket.category_name.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+      setFilteredTickets(filtered)
+    }
+  }, [searchQuery, tickets])
 
   const handleCreateTicket = async (ticket: {
     title: string
@@ -99,24 +106,11 @@ export default function Tickets() {
     }
   }
 
-  const handleUpdateTicket = async (id: number, state: string) => {
-    try {
-      await fetch('/api/tickets', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, state })
-      })
-      fetchTickets()
-    } catch (error) {
-      console.error('Error updating ticket:', error)
-    }
-  }
-
   const ticketsByState = {
-    open: tickets.filter(t => t.state === 'open'),
-    inProgress: tickets.filter(t => t.state === 'inProgress'),
-    resolved: tickets.filter(t => t.state === 'resolved'),
-    closed: tickets.filter(t => t.state === 'closed'),
+    open: filteredTickets.filter(t => t.state === 'open'),
+    inProgress: filteredTickets.filter(t => t.state === 'inProgress'),
+    resolved: filteredTickets.filter(t => t.state === 'resolved'),
+    closed: filteredTickets.filter(t => t.state === 'closed'),
   }
 
   const getPriorityBadge = (priority: string) => {
@@ -176,7 +170,7 @@ export default function Tickets() {
     <div className="min-h-screen flex">
       {/* Sidebar */}
       <aside className="w-64 sidebar border-r border-slate-700/50 p-6 flex flex-col">
-        <div className="flex items-center gap-3 mb-12">
+        <Link href="/login" className="flex items-center gap-3 mb-12">
           <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
             <Headphones className="w-5 h-5 text-white" />
           </div>
@@ -184,39 +178,23 @@ export default function Tickets() {
             <h1 className="font-bold text-lg">IT Support</h1>
             <p className="text-xs text-slate-400">Support Hub</p>
           </div>
-        </div>
+        </Link>
 
         <nav className="flex-1 space-y-2">
-          <Link 
-            href="/dashboard"
-            className="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-300 hover:bg-slate-800 transition"
-          >
+          <Link href="/dashboard" className="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-300 hover:bg-slate-800 transition">
             <LayoutDashboard className="w-5 h-5" />
             Dashboard
           </Link>
-          <Link 
-            href="/tickets"
-            className="flex items-center gap-3 px-4 py-3 rounded-xl bg-blue-500/20 text-blue-400 border border-blue-500/30"
-          >
+          <Link href="/tickets" className="flex items-center gap-3 px-4 py-3 rounded-xl bg-blue-500/20 text-blue-400 border border-blue-500/30">
             <Ticket className="w-5 h-5" />
             Tickets
-          </Link>
-          <Link 
-            href="#"
-            className="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-300 hover:bg-slate-800 transition"
-          >
-            <BarChart3 className="w-5 h-5" />
-            Reportes
           </Link>
         </nav>
 
         <div className="pt-6 border-t border-slate-700/50">
-          <Link 
-            href="#"
-            className="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-300 hover:bg-slate-800 transition"
-          >
+          <Link href="/login" className="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-300 hover:bg-slate-800 transition">
             <Settings className="w-5 h-5" />
-            Configuración
+            Cambiar Usuario
           </Link>
         </div>
       </aside>
@@ -230,6 +208,8 @@ export default function Tickets() {
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
               <input 
                 type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Buscar tickets..."
                 className="w-full pl-12 pr-4 py-3 bg-slate-800/50 border border-slate-700 rounded-xl text-slate-300 placeholder-slate-500 focus:outline-none focus:border-blue-500"
               />
@@ -237,10 +217,7 @@ export default function Tickets() {
           </div>
           
           <div className="flex items-center gap-4">
-            <button 
-              onClick={fetchTickets}
-              className="p-3 rounded-xl bg-slate-800 hover:bg-slate-700 transition"
-            >
+            <button onClick={fetchTickets} className="p-3 rounded-xl bg-slate-800 hover:bg-slate-700 transition">
               <RefreshCw className="w-5 h-5 text-slate-400" />
             </button>
             <button className="relative p-3 rounded-xl bg-slate-800 hover:bg-slate-700 transition">
@@ -253,7 +230,7 @@ export default function Tickets() {
                 <p className="text-sm text-slate-400">{isAdmin ? 'Administrador' : 'Usuario'}</p>
               </div>
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center font-bold">
-                CG
+                {userName ? userName.charAt(0).toUpperCase() : 'U'}
               </div>
             </div>
           </div>
@@ -265,13 +242,11 @@ export default function Tickets() {
           <div className="flex items-center justify-between mb-8">
             <div>
               <h1 className="text-3xl font-bold mb-2">Tickets</h1>
-              <p className="text-slate-400">{tickets.length} tickets totales</p>
+              <p className="text-slate-400">
+                {searchQuery ? `${filteredTickets.length} resultados` : `${filteredTickets.length} tickets totales`}
+              </p>
             </div>
             <div className="flex items-center gap-3">
-              <button className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-xl flex items-center gap-2 transition">
-                <Filter className="w-4 h-4" />
-                Filtros
-              </button>
               <div className="flex bg-slate-800 rounded-xl p-1">
                 <button 
                   onClick={() => setViewMode('kanban')}
@@ -299,6 +274,25 @@ export default function Tickets() {
           {loading ? (
             <div className="flex items-center justify-center h-64">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+            </div>
+          ) : filteredTickets.length === 0 ? (
+            <div className="card rounded-2xl p-12 text-center">
+              <Ticket className="w-16 h-16 text-slate-600 mx-auto mb-4" />
+              <h3 className="text-xl font-bold mb-2">
+                {searchQuery ? 'No se encontraron tickets' : 'No hay tickets'}
+              </h3>
+              <p className="text-slate-400 mb-6">
+                {searchQuery ? 'Intenta con otra búsqueda' : 'Crea tu primer ticket'}
+              </p>
+              {!searchQuery && (
+                <button 
+                  onClick={() => setIsModalOpen(true)}
+                  className="px-6 py-3 bg-blue-500 hover:bg-blue-600 rounded-xl font-medium inline-flex items-center gap-2 transition"
+                >
+                  <Plus className="w-5 h-5" />
+                  Nuevo Ticket
+                </button>
+              )}
             </div>
           ) : (
             <>
@@ -378,13 +372,12 @@ export default function Tickets() {
                         <th className="text-left px-6 py-4 font-medium text-slate-400">Categoría</th>
                         <th className="text-left px-6 py-4 font-medium text-slate-400">Prioridad</th>
                         <th className="text-left px-6 py-4 font-medium text-slate-400">Estado</th>
-                        <th className="text-left px-6 py-4 font-medium text-slate-400">Asignado</th>
                         <th className="text-left px-6 py-4 font-medium text-slate-400">Fecha</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-700/50">
-                      {tickets.map((ticket) => (
-                        <tr key={ticket.id} className="hover:bg-slate-800/30 transition cursor-pointer">
+                      {filteredTickets.map((ticket) => (
+                        <tr key={ticket.id} className="hover:bg-slate-800/30 transition">
                           <td className="px-6 py-4 font-mono text-slate-400"><Link href={`/tickets/${ticket.id}`}>{ticket.ticket_number}</Link></td>
                           <td className="px-6 py-4 font-medium"><Link href={`/tickets/${ticket.id}`}>{ticket.title}</Link></td>
                           <td className="px-6 py-4 text-slate-400">{ticket.category_name}</td>
@@ -398,7 +391,6 @@ export default function Tickets() {
                              ticket.state === 'inProgress' ? 'En Progreso' : 
                              ticket.state === 'resolved' ? 'Resuelto' : 'Cerrado'}
                           </td>
-                          <td className="px-6 py-4 text-slate-400">{ticket.technician_name || 'Sin asignar'}</td>
                           <td className="px-6 py-4 text-slate-500">{formatDate(ticket.created_at)}</td>
                         </tr>
                       ))}

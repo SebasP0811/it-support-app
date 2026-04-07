@@ -189,7 +189,7 @@ export default function TicketDetail() {
     <div className="min-h-screen flex">
       {/* Sidebar */}
       <aside className="w-64 sidebar border-r border-slate-700/50 p-6 flex flex-col">
-        <div className="flex items-center gap-3 mb-12">
+        <Link href="/login" className="flex items-center gap-3 mb-12">
           <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
             <Headphones className="w-5 h-5 text-white" />
           </div>
@@ -197,7 +197,7 @@ export default function TicketDetail() {
             <h1 className="font-bold text-lg">IT Support</h1>
             <p className="text-xs text-slate-400">Support Hub</p>
           </div>
-        </div>
+        </Link>
 
         <nav className="flex-1 space-y-2">
           <Link href="/dashboard" className="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-300 hover:bg-slate-800 transition">
