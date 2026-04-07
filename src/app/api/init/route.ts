@@ -46,12 +46,20 @@ export async function POST() {
         ('Accesos', 'Solicitudes de acceso')
       ON CONFLICT DO NOTHING;
 
-      INSERT INTO technicians (name, email, role) VALUES 
-        ('Carlos García', 'carlos@empresa.com', 'admin'),
-        ('María López', 'maria@empresa.com', 'technician'),
-        ('Luis Rodríguez', 'luis@empresa.com', 'technician'),
-        ('Ana Martínez', 'ana@empresa.com', 'technician')
-      ON CONFLICT DO NOTHING;
+        INSERT INTO technicians (name, email, role) VALUES 
+          ('Carlos García', 'carlos@empresa.com', 'admin'),
+          ('María López', 'maria@empresa.com', 'technician'),
+          ('Luis Rodríguez', 'luis@empresa.com', 'technician'),
+          ('Ana Martínez', 'ana@empresa.com', 'technician')
+        ON CONFLICT DO NOTHING;
+
+        CREATE TABLE IF NOT EXISTS ticket_comments (
+          id SERIAL PRIMARY KEY,
+          ticket_id INTEGER REFERENCES tickets(id) ON DELETE CASCADE,
+          author VARCHAR(100) NOT NULL,
+          content TEXT NOT NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
     `
 
     await pool.query(schema)

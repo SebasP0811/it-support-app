@@ -119,9 +119,10 @@ export default function Tickets() {
   }
 
   const renderTicketCard = (ticket: Ticket) => (
-    <div 
+    <Link 
       key={ticket.id}
-      className={`ticket-card rounded-xl p-4 ${
+      href={`/tickets/${ticket.id}`}
+      className={`ticket-card rounded-xl p-4 block ${
         ticket.priority === 'high' ? 'priority-high' : 
         ticket.priority === 'medium' ? 'priority-medium' : 'priority-low'
       }`}
@@ -144,7 +145,7 @@ export default function Tickets() {
           {formatDate(ticket.created_at)}
         </div>
       </div>
-    </div>
+    </Link>
   )
 
   return (
@@ -360,8 +361,8 @@ export default function Tickets() {
                     <tbody className="divide-y divide-slate-700/50">
                       {tickets.map((ticket) => (
                         <tr key={ticket.id} className="hover:bg-slate-800/30 transition cursor-pointer">
-                          <td className="px-6 py-4 font-mono text-slate-400">{ticket.ticket_number}</td>
-                          <td className="px-6 py-4 font-medium">{ticket.title}</td>
+                          <td className="px-6 py-4 font-mono text-slate-400"><Link href={`/tickets/${ticket.id}`}>{ticket.ticket_number}</Link></td>
+                          <td className="px-6 py-4 font-medium"><Link href={`/tickets/${ticket.id}`}>{ticket.title}</Link></td>
                           <td className="px-6 py-4 text-slate-400">{ticket.category_name}</td>
                           <td className="px-6 py-4">
                             <span className={`px-3 py-1 rounded-lg text-sm font-medium ${getPriorityBadge(ticket.priority)}`}>

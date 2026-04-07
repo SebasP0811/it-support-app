@@ -1,6 +1,6 @@
 'use client'
-import { X } from 'lucide-react'
 import { useState, useEffect } from 'react'
+import { X } from 'lucide-react'
 
 interface TicketModalProps {
   isOpen: boolean
@@ -29,6 +29,8 @@ export default function TicketModal({ isOpen, onClose, onSubmit }: TicketModalPr
 
   useEffect(() => {
     if (isOpen) {
+      const savedName = localStorage.getItem('userName') || ''
+      setCreatedBy(savedName)
       fetchCategories()
     }
   }, [isOpen])
@@ -47,12 +49,13 @@ export default function TicketModal({ isOpen, onClose, onSubmit }: TicketModalPr
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    onSubmit({ title, description, priority, category_id: categoryId, created_by: createdBy || 'Usuario' })
+    const userName = createdBy || 'Usuario'
+    localStorage.setItem('userName', userName)
+    onSubmit({ title, description, priority, category_id: categoryId, created_by: userName })
     setTitle('')
     setDescription('')
     setPriority('medium')
     setCategoryId(1)
-    setCreatedBy('')
     onClose()
   }
 
@@ -123,7 +126,7 @@ export default function TicketModal({ isOpen, onClose, onSubmit }: TicketModalPr
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-2">Tu Nombre</label>
+            <label className="block text-sm font-medium mb-2">Tu Nombre (se guardará para futuros tickets)</label>
             <input
               type="text"
               value={createdBy}
