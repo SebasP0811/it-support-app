@@ -11,32 +11,25 @@ export async function GET(request: Request) {
 
     if (isAdmin) {
       const result = await pool.query(`
-        SELECT e.id, e.ticket_id, e.event_type, e.old_value, e.new_value, e.created_at,
-               t.ticket_number, t.title, t.state, t.priority, t.created_by
+        SELECT e.id, e.ticket_id, e.event_type, e.old_value, e.new_value, e.created_at, e.created_by,
+               t.ticket_number, t.title, t.state, t.priority, t.created_by as ticket_creator
         FROM ticket_events e
         JOIN tickets t ON e.ticket_id = t.id
         ORDER BY e.created_at DESC
         LIMIT 20
       `)
-      notifications = result.rows.map(row => ({
-        ...row,
-        type: 'event',
-        message: `Estado changed to ${row.new_value}`
-      }))
+      notifications = result.rows
     } else if (userName) {
       const result = await pool.query(`
-        SELECT e.id, e.ticket_id, e.event_type, e.old_value, e.new_value, e.created_at,
-               t.ticket_number, t.title, t.state, t.priority, t.created_by
+        SELECT e.id, e.ticket_id, e.event_type, e.old_value, e.new_value, e.created_at, e.created_by,
+               t.ticket_number, t.title, t.state, t.priority, t.created_by as ticket_creator
         FROM ticket_events e
         JOIN tickets t ON e.ticket_id = t.id
         WHERE t.created_by = $1
         ORDER BY e.created_at DESC
         LIMIT 20
       `, [userName])
-      notifications = result.rows.map(row => ({
-        ...row,
-        type: 'event'
-      }))
+      notifications = result.rows
     }
 
     return NextResponse.json(notifications)

@@ -36,7 +36,7 @@ export default function NotificationBell({ userName, isAdmin }: NotificationBell
   const dropdownRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (userName && isAdmin) {
+    if (userName) {
       fetchNotifications()
       const interval = setInterval(fetchNotifications, 10000)
       return () => clearInterval(interval)
@@ -98,7 +98,10 @@ export default function NotificationBell({ userName, isAdmin }: NotificationBell
     if (notif.event_type === 'state_change') {
       const oldLabel = stateLabels[notif.old_value] || notif.old_value || 'Abierto'
       const newLabel = stateLabels[notif.new_value] || notif.new_value || 'Nuevo'
-      return `Estado: ${oldLabel} → ${newLabel}`
+      if (isAdmin) {
+        return `Estado: ${oldLabel} → ${newLabel}`
+      }
+      return `Tu ticket cambió a: ${newLabel}`
     }
     return ''
   }
@@ -168,9 +171,11 @@ export default function NotificationBell({ userName, isAdmin }: NotificationBell
                           {getEventMessage(notif)}
                         </span>
                       </div>
-                      <p className="text-xs text-slate-500 mt-1">
-                        Por: {notif.created_by || 'Sistema'}
-                      </p>
+                      {isAdmin && (
+                        <p className="text-xs text-slate-500 mt-1">
+                          Por: {notif.created_by || 'Sistema'}
+                        </p>
+                      )}
                     </div>
                   </div>
                 </Link>
