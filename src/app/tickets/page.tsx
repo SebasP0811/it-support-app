@@ -50,7 +50,17 @@ export default function Tickets() {
 
   const fetchTickets = async () => {
     try {
-      const res = await fetch('/api/tickets')
+      const savedName = localStorage.getItem('userName') || ''
+      const adminStatus = localStorage.getItem('isAdmin') === 'true'
+      
+      let url = '/api/tickets'
+      if (savedName && !adminStatus) {
+        url += `?userName=${encodeURIComponent(savedName)}&isAdmin=false`
+      } else if (savedName && adminStatus) {
+        url += `?isAdmin=true`
+      }
+      
+      const res = await fetch(url)
       const data = await res.json()
       setTickets(data)
     } catch (error) {
@@ -61,6 +71,10 @@ export default function Tickets() {
   }
 
   useEffect(() => {
+    const savedName = localStorage.getItem('userName') || ''
+    const adminStatus = localStorage.getItem('isAdmin') === 'true'
+    setUserName(savedName)
+    setIsAdmin(adminStatus)
     fetchTickets()
   }, [])
 

@@ -55,7 +55,7 @@ export async function POST() {
 
         CREATE TABLE IF NOT EXISTS ticket_comments (
           id SERIAL PRIMARY KEY,
-          ticket_id INTEGER REFERENCES tickets(id) ON DELETE CASCADE,
+          ticket_id INTEGER,
           author VARCHAR(100) NOT NULL,
           content TEXT NOT NULL,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP

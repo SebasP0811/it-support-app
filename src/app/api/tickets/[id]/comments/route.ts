@@ -29,15 +29,19 @@ export async function POST(
     const body = await request.json()
     const { author, content } = body
 
+    if (!content || !content.trim()) {
+      return NextResponse.json({ error: 'Content is required' }, { status: 400 })
+    }
+
     const result = await pool.query(`
       INSERT INTO ticket_comments (ticket_id, author, content)
       VALUES ($1, $2, $3)
       RETURNING *
-    `, [id, author, content])
+    `, [id, author || 'Anonymous', content.trim()])
 
     return NextResponse.json(result.rows[0], { status: 201 })
   } catch (error) {
     console.error('Error creating comment:', error)
-    return NextResponse.json({ error: 'Error creating comment' }, { status: 500 })
+    return NextResponse.json({ error: 'Error creating comment', details: String(error) }, { status: 500 })
   }
 }

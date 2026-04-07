@@ -1,16 +1,28 @@
-export const runtime = 'nodejs'
 import { NextResponse } from 'next/server'
 import pool from '@/lib/db'
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const result = await pool.query(`
+    const { searchParams } = new URL(request.url)
+    const userName = searchParams.get('userName')
+    const isAdmin = searchParams.get('isAdmin') === 'true'
+
+    let query = `
       SELECT t.*, c.name as category_name, tech.name as technician_name
       FROM tickets t
       LEFT JOIN categories c ON t.category_id = c.id
       LEFT JOIN technicians tech ON t.technician_id = tech.id
-      ORDER BY t.created_at DESC
-    `)
+    `
+
+    if (userName && !isAdmin) {
+      query += ` WHERE t.created_by = $1`
+      query += ` ORDER BY t.created_at DESC`
+      const result = await pool.query(query, [userName])
+      return NextResponse.json(result.rows)
+    }
+
+    query += ` ORDER BY t.created_at DESC`
+    const result = await pool.query(query)
     return NextResponse.json(result.rows)
   } catch (error) {
     console.error('Error fetching tickets:', error)

@@ -56,8 +56,18 @@ export default function Dashboard() {
 
   const fetchData = async () => {
     try {
+      const savedName = localStorage.getItem('userName') || ''
+      const adminStatus = localStorage.getItem('isAdmin') === 'true'
+      
+      let ticketsUrl = '/api/tickets'
+      if (savedName && !adminStatus) {
+        ticketsUrl += `?userName=${encodeURIComponent(savedName)}&isAdmin=false`
+      } else if (savedName && adminStatus) {
+        ticketsUrl += `?isAdmin=true`
+      }
+      
       const [ticketsRes, statsRes] = await Promise.all([
-        fetch('/api/tickets'),
+        fetch(ticketsUrl),
         fetch('/api/stats')
       ])
       const ticketsData = await ticketsRes.json()
@@ -72,6 +82,10 @@ export default function Dashboard() {
   }
 
   useEffect(() => {
+    const savedName = localStorage.getItem('userName') || ''
+    const adminStatus = localStorage.getItem('isAdmin') === 'true'
+    setUserName(savedName)
+    setIsAdmin(adminStatus)
     fetchData()
   }, [])
 
