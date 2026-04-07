@@ -37,6 +37,16 @@ export default function Tickets() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [tickets, setTickets] = useState<Ticket[]>([])
   const [loading, setLoading] = useState(true)
+  const [userName, setUserName] = useState('')
+  const [isAdmin, setIsAdmin] = useState(false)
+
+  useEffect(() => {
+    const savedName = localStorage.getItem('userName') || ''
+    const adminStatus = localStorage.getItem('isAdmin') === 'true'
+    setUserName(savedName)
+    setIsAdmin(adminStatus)
+    fetchTickets()
+  }, [])
 
   const fetchTickets = async () => {
     try {
@@ -225,8 +235,8 @@ export default function Tickets() {
             </button>
             <div className="flex items-center gap-3 pl-4 border-l border-slate-700">
               <div className="text-right">
-                <p className="font-medium">Carlos García</p>
-                <p className="text-sm text-slate-400">Admin</p>
+                <p className="font-medium">{userName}</p>
+                <p className="text-sm text-slate-400">{isAdmin ? 'Administrador' : 'Usuario'}</p>
               </div>
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center font-bold">
                 CG

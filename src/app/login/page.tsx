@@ -8,6 +8,7 @@ export default function Login() {
   const [isAdmin, setIsAdmin] = useState(false)
   const [savedName, setSavedName] = useState('')
   const [savedIsAdmin, setSavedIsAdmin] = useState(false)
+  const [error, setError] = useState('')
   const router = useRouter()
 
   useEffect(() => {
@@ -26,9 +27,24 @@ export default function Login() {
     e.preventDefault()
     if (!name.trim()) return
     
+    if (isAdmin && name.toLowerCase() !== 'helpdesk') {
+      setError('Solo el usuario "helpdesk" puede ser administrador')
+      return
+    }
+    
+    setError('')
     localStorage.setItem('userName', name)
     localStorage.setItem('isAdmin', String(isAdmin))
     router.push('/dashboard')
+  }
+
+  const handleAdminToggle = (value: boolean) => {
+    if (value && name.toLowerCase() !== 'helpdesk') {
+      setError('Solo el usuario "helpdesk" puede ser administrador')
+    } else {
+      setError('')
+      setIsAdmin(value)
+    }
   }
 
   return (
@@ -60,7 +76,7 @@ export default function Login() {
             <div className="grid grid-cols-2 gap-4">
               <button
                 type="button"
-                onClick={() => setIsAdmin(false)}
+                onClick={() => { setIsAdmin(false); setError('') }}
                 className={`p-4 rounded-xl border-2 transition ${
                   !isAdmin 
                     ? 'border-blue-500 bg-blue-500/20 text-blue-400' 
@@ -73,7 +89,7 @@ export default function Login() {
               </button>
               <button
                 type="button"
-                onClick={() => setIsAdmin(true)}
+                onClick={() => handleAdminToggle(true)}
                 className={`p-4 rounded-xl border-2 transition ${
                   isAdmin 
                     ? 'border-purple-500 bg-purple-500/20 text-purple-400' 
@@ -85,6 +101,9 @@ export default function Login() {
                 <p className="text-xs mt-1 opacity-70">Gestionar todo</p>
               </button>
             </div>
+            {error && (
+              <p className="mt-2 text-sm text-red-400 text-center">{error}</p>
+            )}
           </div>
 
           <button
