@@ -35,6 +35,24 @@ export async function POST() {
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
 
+      CREATE TABLE IF NOT EXISTS ticket_events (
+        id SERIAL PRIMARY KEY,
+        ticket_id INTEGER REFERENCES tickets(id),
+        event_type VARCHAR(50) NOT NULL,
+        old_value TEXT,
+        new_value TEXT,
+        created_by VARCHAR(100),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS ticket_comments (
+        id SERIAL PRIMARY KEY,
+        ticket_id INTEGER,
+        author VARCHAR(100) NOT NULL,
+        content TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
       INSERT INTO categories (name, description) VALUES 
         ('Soporte General', 'Problemas generales de soporte técnico'),
         ('Hardware', 'Problemas con equipos físicos'),
@@ -46,20 +64,12 @@ export async function POST() {
         ('Accesos', 'Solicitudes de acceso')
       ON CONFLICT DO NOTHING;
 
-        INSERT INTO technicians (name, email, role) VALUES 
-          ('Carlos García', 'carlos@empresa.com', 'admin'),
-          ('María López', 'maria@empresa.com', 'technician'),
-          ('Luis Rodríguez', 'luis@empresa.com', 'technician'),
-          ('Ana Martínez', 'ana@empresa.com', 'technician')
-        ON CONFLICT DO NOTHING;
-
-        CREATE TABLE IF NOT EXISTS ticket_comments (
-          id SERIAL PRIMARY KEY,
-          ticket_id INTEGER,
-          author VARCHAR(100) NOT NULL,
-          content TEXT NOT NULL,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
+      INSERT INTO technicians (name, email, role) VALUES 
+        ('Carlos García', 'carlos@empresa.com', 'admin'),
+        ('María López', 'maria@empresa.com', 'technician'),
+        ('Luis Rodríguez', 'luis@empresa.com', 'technician'),
+        ('Ana Martínez', 'ana@empresa.com', 'technician')
+      ON CONFLICT DO NOTHING;
     `
 
     await pool.query(schema)

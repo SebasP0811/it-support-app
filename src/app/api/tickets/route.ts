@@ -55,7 +55,10 @@ export async function POST(request: Request) {
 export async function PUT(request: Request) {
   try {
     const body = await request.json()
-    const { id, state, technician_id, priority } = body
+    const { id, state, technician_id, priority, updated_by } = body
+
+    const oldTicket = await pool.query('SELECT * FROM tickets WHERE id = $1', [id])
+    const oldState = oldTicket.rows[0]?.state
 
     const result = await pool.query(`
       UPDATE tickets 
@@ -66,6 +69,20 @@ export async function PUT(request: Request) {
       WHERE id = $1
       RETURNING *
     `, [id, state, technician_id, priority])
+
+    if (state && state !== oldState) {
+      const stateLabels: Record<string, string> = {
+        open: 'Abierto',
+        inProgress: 'En Progreso',
+        resolved: 'Resuelto',
+        closed: 'Cerrado'
+      }
+      
+      await pool.query(`
+        INSERT INTO ticket_events (ticket_id, event_type, old_value, new_value, created_by)
+        VALUES ($1, 'state_change', $2, $3, $4)
+      `, [id, oldState || 'open', state, updated_by || 'Sistema'])
+    }
 
     return NextResponse.json(result.rows[0])
   } catch (error) {
