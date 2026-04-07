@@ -1,7 +1,9 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { Headphones, User, Shield, ArrowRight } from 'lucide-react'
+import { Headphones, User, Shield, ArrowRight, XCircle } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+
+const ADMIN_USERS = ['helpdesk', 'jaime hernan valencia', 'johan sebastian rico alvarez']
 
 export default function Login() {
   const [name, setName] = useState('')
@@ -9,6 +11,7 @@ export default function Login() {
   const [savedName, setSavedName] = useState('')
   const [savedIsAdmin, setSavedIsAdmin] = useState(false)
   const [error, setError] = useState('')
+  const [adminError, setAdminError] = useState('')
   const router = useRouter()
 
   useEffect(() => {
@@ -23,26 +26,32 @@ export default function Login() {
     }
   }, [])
 
+  const isAdminUser = (userName: string) => {
+    return ADMIN_USERS.includes(userName.toLowerCase().trim())
+  }
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!name.trim()) return
     
-    if (isAdmin && name.toLowerCase() !== 'helpdesk') {
-      setError('Solo el usuario "helpdesk" puede ser administrador')
+    if (isAdmin && !isAdminUser(name)) {
+      setAdminError('ACCESO DENEGADO: No tienes permisos de administrador')
       return
     }
     
     setError('')
+    setAdminError('')
     localStorage.setItem('userName', name)
     localStorage.setItem('isAdmin', String(isAdmin))
     router.push('/dashboard')
   }
 
   const handleAdminToggle = (value: boolean) => {
-    if (value && name.toLowerCase() !== 'helpdesk') {
-      setError('Solo el usuario "helpdesk" puede ser administrador')
+    if (value && !isAdminUser(name)) {
+      setAdminError('ACCESO DENEGADO: No tienes permisos de administrador')
+      setIsAdmin(false)
     } else {
-      setError('')
+      setAdminError('')
       setIsAdmin(value)
     }
   }
@@ -101,8 +110,13 @@ export default function Login() {
                 <p className="text-xs mt-1 opacity-70">Gestionar todo</p>
               </button>
             </div>
-            {error && (
-              <p className="mt-2 text-sm text-red-400 text-center">{error}</p>
+            {adminError && (
+              <div className="mt-4 p-4 bg-red-500/20 border border-red-500/50 rounded-xl">
+                <div className="flex items-center gap-2 text-red-400">
+                  <XCircle className="w-5 h-5" />
+                  <span className="font-bold">{adminError}</span>
+                </div>
+              </div>
             )}
           </div>
 
